@@ -29,18 +29,28 @@ function initIcons() {
 
 // Load from LocalStorage
 function loadState() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        state = JSON.parse(saved);
-        if (state.active) {
-            showDashboard();
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            state = JSON.parse(saved);
+            if (state.active) {
+                showDashboard();
+            } else {
+                showSetup();
+            }
+        } else {
+            showSetup();
         }
+    } catch (e) {
+        console.error("Load state error:", e);
+        showSetup();
     }
 }
 
-// Save to LocalStorage
-function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function showSetup() {
+    document.getElementById('setup-section').classList.remove('d-none');
+    document.getElementById('dashboard-section').classList.add('d-none');
+    document.getElementById('reset-btn-container').classList.add('d-none');
 }
 
 // --- UI NAVIGATION ---
@@ -63,157 +73,97 @@ function renderAll() {
 
 // --- TOURNAMENT CREATION ---
 function generateTeamInputs() {
-    const count = parseInt(document.getElementById('team-count').value);
+    console.log("Generating team inputs...");
+    const select = document.getElementById('team-count');
+    if (!select) return;
+    
+    const count = parseInt(select.value);
     const container = document.getElementById('team-names-container');
+    if (!container) return;
+    
     container.innerHTML = "";
     
-    if (isNaN(count)) return;
+    if (isNaN(count) || count <= 0) return;
 
     for (let i = 1; i <= count; i++) {
         const div = document.createElement('div');
         div.className = "col-md-6 mb-3";
         div.innerHTML = `
-            <input type="text" class="form-control form-control-lg border-2 rounded-2 team-input" 
-                   placeholder="Team ${i} Name" required maxlength="15">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-2 text-navy fw-bold">${i}</span>
+                <input type="text" class="form-control form-control-lg border-2 team-input" 
+                       placeholder="Team Name" required maxlength="15">
+            </div>
         `;
         container.appendChild(div);
     }
     initIcons();
 }
 
+// Exposed to global scope for HTML inline calls
+window.launchTournament = function(e) {
+    if (e) e.preventDefault();
+    console.log("Launching Tournament...");
+    
+    try {
+        const nameInput = document.getElementById('tournament-name');
+        const countInput = document.getElementById('team-count');
+        
+        if (!nameInput || !nameInput.value.trim()) {
+            alert("Please enter a Tournament Title.");
+            return;
+        }
+
+        if (!countInput || !countInput.value) {
+            alert("Please select the number of teams.");
+            return;
+        }
+
+        const inputs = document.querySelectorAll('.team-input');
+        const teams = Array.from(inputs).map(input => input.value.trim().toUpperCase());
+        
+        if (teams.length === 0) {
+            alert("Please select team count first and provide names.");
+            return;
+        }
+
+        if (teams.some(t => !t)) {
+            alert("All team names are required.");
+            return;
+        }
+
+        if (new Set(teams).size !== teams.length) {
+            alert("Team names must be unique!");
+            return;
+        }
+
+        state.active = true;
+        state.name = nameInput.value.trim();
+        state.teamCount = teams.length;
+        state.teams = teams.map(name => ({
+            name,
+            played: 0, won: 0, lost: 0, tied: 0, pts: 0,
+            runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0, nrr: 0
+        }));
+
+        generateLeagueMatches(teams);
+        saveState();
+        showDashboard();
+        console.log("Tournament Launched!");
+    } catch (err) {
+        console.error("Launch Error:", err);
+        alert("Launch failed. See console for details.");
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("Stumps & Beyond Initialized");
+    console.log("Stumps & Beyond App Ready");
     loadState();
     
-    // Setup Form Listener
+    // Extra guard for setup form
     const setupForm = document.getElementById('setup-form');
     if (setupForm) {
-        setupForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log("Setup Form Submitted");
-            try {
-                const nameInput = document.getElementById('tournament-name');
-                const countInput = document.getElementById('team-count');
-                
-                if (!nameInput.value.trim() || !countInput.value) {
-                    alert("Please fill in all tournament details.");
-                    return;
-                }
-
-                const inputs = document.querySelectorAll('.team-input');
-                const teams = Array.from(inputs).map(input => input.value.trim().toUpperCase());
-                
-                if (teams.some(t => !t)) {
-                    alert("All team names are required.");
-                    return;
-                }
-
-                if (new Set(teams).size !== teams.length) {
-                    alert("Team names must be unique!");
-                    return;
-                }
-
-                if (teams.length < 2) {
-                    alert("Please provide at least 2 teams.");
-                    return;
-                }
-
-                state.active = true;
-                state.name = nameInput.value.trim();
-                state.teamCount = teams.length;
-                state.teams = teams.map(name => ({
-                    name,
-                    played: 0, won: 0, lost: 0, tied: 0, pts: 0,
-                    runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0, nrr: 0
-                }));
-
-                generateLeagueMatches(teams);
-                saveState();
-                showDashboard();
-                console.log("Tournament Launched Successfully");
-            } catch (err) {
-                console.error("Setup Error:", err);
-                alert("Failed to initialize tournament. Error: " + err.message);
-            }
-        });
-    }
-
-    // Team Count Choice Listener
-    const teamCountSelect = document.getElementById('team-count');
-    if (teamCountSelect) {
-        teamCountSelect.addEventListener('change', generateTeamInputs);
-    }
-
-    // Search Listener
-    const searchInput = document.getElementById('match-search');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => filterMatches(e.target.value));
-    }
-
-    // Reset Button
-    const resetBtn = document.getElementById('reset-tournament-btn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', confirmReset);
-    }
-
-    // View Points Button
-    const viewPointsBtn = document.getElementById('view-points-btn');
-    if (viewPointsBtn) {
-        viewPointsBtn.addEventListener('click', renderPointsTable);
-    }
-
-    // View Playoffs Button
-    const viewPlayoffsBtn = document.getElementById('view-playoffs-btn');
-    if (viewPlayoffsBtn) {
-        viewPlayoffsBtn.addEventListener('click', renderPlayoffs);
-    }
-
-    // Close Champion Button
-    const closeChampBtn = document.getElementById('close-champion-btn');
-    if (closeChampBtn) {
-        closeChampBtn.addEventListener('click', closeChampion);
-    }
-
-    // Result Form Listener
-    const resultForm = document.getElementById('result-form');
-    if (resultForm) {
-        resultForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const id = parseInt(document.getElementById('modal-match-id').value);
-            const m = state.matches.find(match => match.id === id);
-            
-            m.team1Score = parseInt(document.getElementById('team1-score').value);
-            m.team1Wickets = parseInt(document.getElementById('team1-wickets').value);
-            m.team2Score = parseInt(document.getElementById('team2-score').value);
-            m.team2Wickets = parseInt(document.getElementById('team2-wickets').value);
-            m.team1Overs = parseFloat(document.getElementById('team1-overs').value);
-            m.team2Overs = parseFloat(document.getElementById('team2-overs').value);
-            m.quota = parseFloat(document.getElementById('match-quota').value);
-            m.status = 'completed';
-
-            if (m.team1Score > m.team2Score) m.winner = m.team1;
-            else if (m.team2Score > m.team1Score) m.winner = m.team2;
-            else m.winner = "Tie";
-
-            const modalEl = document.getElementById('resultModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) modalInstance.hide();
-            
-            if (m.type === 'final' && m.winner !== 'Tie') {
-                state.playoffs.champion = m.winner;
-                showConfetti();
-            }
-
-            saveState();
-            renderAll();
-            
-            const toastEl = document.getElementById('liveToast');
-            if (toastEl) {
-                const toast = new bootstrap.Toast(toastEl);
-                toast.show();
-            }
-        });
+        setupForm.onsubmit = window.launchTournament;
     }
 
     initIcons();

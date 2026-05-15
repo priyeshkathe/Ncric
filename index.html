@@ -16,16 +16,16 @@
 <body class="bg-light text-dark">
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light sticky-top shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-sm" style="background-color: var(--bcci-navy); border-bottom: 4px solid var(--bcci-gold);">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="#">
-                <div class="logo-box px-2 py-1 me-2 shadow-sm">
-                    <i data-lucide="trophy" style="width:24px; height:24px"></i>
+                <div class="logo-box px-2 py-1 me-2 shadow-sm" style="background: var(--bcci-gold); border-radius: 4px;">
+                    <i data-lucide="trophy" style="color: var(--bcci-navy); width:24px; height:24px"></i>
                 </div>
-                <span class="brand-text text-navy text-uppercase fs-4 fw-bold">STUMPS <span style="color: var(--bcci-gold)">BEYOND</span></span>
+                <span class="brand-text text-white text-uppercase fs-4 fw-bold">STUMPS <span style="color: var(--bcci-gold)">BEYOND</span></span>
             </a>
             <div id="reset-btn-container" class="ms-auto d-none">
-                <button class="btn btn-warning btn-sm rounded-1 px-3 fw-bold" id="reset-tournament-btn">
+                <button class="btn btn-warning btn-sm rounded-1 px-3 fw-bold" onclick="confirmReset()">
                     <i data-lucide="trash-2" class="me-1" style="width:14px; height:14px"></i> DELETE LEAGUE
                 </button>
             </div>
@@ -39,7 +39,7 @@
         <section id="setup-section" class="animate-up">
             <div class="row justify-content-center">
                 <div class="col-md-9 col-lg-6">
-                    <div class="card pro-card border-0 p-5 shadow-lg">
+                    <div class="card pro-card border-0 p-5 shadow-lg bg-white">
                         <div class="text-center mb-5">
                             <h1 class="fw-bold text-navy display-5 mb-2">Create Tournament</h1>
                             <p class="text-muted fs-6">Experience the game, manage the glory.</p>
@@ -47,11 +47,11 @@
                         <form id="setup-form">
                             <div class="mb-4">
                                 <label class="text-navy small text-uppercase fw-bold mb-2 d-block ls-1">Tournament Title</label>
-                                <input type="text" id="tournament-name" class="form-control form-control-lg border-2 rounded-2" placeholder="e.g. World Series 2026" required>
+                                <input type="text" id="tournament-name" class="form-control form-control-lg border-2 rounded-2 bg-white" placeholder="e.g. World Series 2026" required>
                             </div>
                             <div class="mb-4">
                                 <label class="text-navy small text-uppercase fw-bold mb-2 d-block ls-1">Competitor Slots</label>
-                                <select id="team-count" class="form-select form-select-lg border-2 rounded-2">
+                                <select id="team-count" class="form-select form-select-lg border-2 rounded-2 bg-white" onchange="generateTeamInputs()">
                                     <option value="">Select pool size...</option>
                                     <option value="2">2 Teams (Head-to-Head)</option>
                                     <option value="3">3 Teams</option>
@@ -85,27 +85,27 @@
             <!-- Professional Stats -->
             <div class="row g-4 mb-5">
                 <div class="col-6 col-md-3">
-                    <div class="stat-pill shadow-sm">
+                    <div class="stat-pill shadow-sm bg-white">
                         <span class="stat-label">Total Fixtures</span>
-                        <span id="stat-matches" class="stat-value">0</span>
+                        <span id="stat-matches" class="stat-value text-navy">0</span>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="stat-pill shadow-sm">
+                    <div class="stat-pill shadow-sm bg-white">
                         <span class="stat-label">Completed</span>
                         <span id="stat-completed" class="stat-value" style="color: var(--success-green)">0</span>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="stat-pill shadow-sm">
+                    <div class="stat-pill shadow-sm bg-white">
                         <span class="stat-label">Franchises</span>
-                        <span id="stat-teams" class="stat-value">0</span>
+                        <span id="stat-teams" class="stat-value text-navy">0</span>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="stat-pill shadow-sm" style="border-bottom: 4px solid var(--bcci-gold)">
+                    <div class="stat-pill shadow-sm bg-white" style="border-bottom: 4px solid var(--bcci-gold)">
                         <span class="stat-label">Current Leader</span>
-                        <span id="stat-winner" class="stat-value fs-5">---</span>
+                        <span id="stat-winner" class="stat-value fs-5 text-navy">---</span>
                     </div>
                 </div>
             </div>
@@ -114,8 +114,8 @@
             <div class="d-flex justify-content-center mb-5">
                 <div class="nav nav-pills nav-pills-custom bg-white p-1 rounded-1 shadow-sm border" id="tourneyTabs" role="tablist">
                     <button class="nav-link active rounded-1" data-bs-toggle="pill" data-bs-target="#fixtures">Fixtures</button>
-                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#points-table" id="view-points-btn">Point Standings</button>
-                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#playoffs" id="view-playoffs-btn">Playoffs</button>
+                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#points-table" onclick="renderPointsTable()">Point Standings</button>
+                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#playoffs" onclick="renderPlayoffs()">Playoffs</button>
                 </div>
             </div>
 
