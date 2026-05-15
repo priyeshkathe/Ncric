@@ -81,38 +81,104 @@ function generateTeamInputs() {
     initIcons();
 }
 
-document.getElementById('setup-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    try {
-        const name = document.getElementById('tournament-name').value;
-        const inputs = document.querySelectorAll('.team-input');
-        const teams = Array.from(inputs).map(input => input.value.trim().toUpperCase());
-        
-        if (new Set(teams).size !== teams.length) {
-            alert("Team names must be unique!");
-            return;
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Stumps & Beyond Initialized");
+    loadState();
+    initIcons();
 
-        if (teams.length < 2) {
-            alert("Please provide at least 2 teams.");
-            return;
-        }
+    // Setup Form Listener
+    const setupForm = document.getElementById('setup-form');
+    if (setupForm) {
+        setupForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log("Setup Form Submitted");
+            try {
+                const nameInput = document.getElementById('tournament-name');
+                const countInput = document.getElementById('team-count');
+                
+                if (!nameInput.value.trim() || !countInput.value) {
+                    alert("Please fill in all tournament details.");
+                    return;
+                }
 
-        state.active = true;
-        state.name = name;
-        state.teamCount = teams.length;
-        state.teams = teams.map(name => ({
-            name,
-            played: 0, won: 0, lost: 0, tied: 0, pts: 0,
-            runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0, nrr: 0
-        }));
+                const inputs = document.querySelectorAll('.team-input');
+                const teams = Array.from(inputs).map(input => input.value.trim().toUpperCase());
+                
+                if (teams.some(t => !t)) {
+                    alert("All team names are required.");
+                    return;
+                }
 
-        generateLeagueMatches(teams);
-        saveState();
-        showDashboard();
-    } catch (err) {
-        console.error("Setup Error:", err);
-        alert("Failed to initialize tournament. Please try again.");
+                if (new Set(teams).size !== teams.length) {
+                    alert("Team names must be unique!");
+                    return;
+                }
+
+                if (teams.length < 2) {
+                    alert("Please provide at least 2 teams.");
+                    return;
+                }
+
+                state.active = true;
+                state.name = nameInput.value.trim();
+                state.teamCount = teams.length;
+                state.teams = teams.map(name => ({
+                    name,
+                    played: 0, won: 0, lost: 0, tied: 0, pts: 0,
+                    runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0, nrr: 0
+                }));
+
+                generateLeagueMatches(teams);
+                saveState();
+                showDashboard();
+                console.log("Tournament Launched Successfully");
+            } catch (err) {
+                console.error("Setup Error:", err);
+                alert("Failed to initialize tournament. Error: " + err.message);
+            }
+        });
+    }
+
+    // Result Form Listener
+    const resultForm = document.getElementById('result-form');
+    if (resultForm) {
+        resultForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const id = parseInt(document.getElementById('modal-match-id').value);
+            const m = state.matches.find(match => match.id === id);
+            
+            m.team1Score = parseInt(document.getElementById('team1-score').value);
+            m.team1Wickets = parseInt(document.getElementById('team1-wickets').value);
+            m.team2Score = parseInt(document.getElementById('team2-score').value);
+            m.team2Wickets = parseInt(document.getElementById('team2-wickets').value);
+            m.team1Overs = parseFloat(document.getElementById('team1-overs').value);
+            m.team2Overs = parseFloat(document.getElementById('team2-overs').value);
+            m.quota = parseFloat(document.getElementById('match-quota').value);
+            m.status = 'completed';
+
+            if (m.team1Score > m.team2Score) m.winner = m.team1;
+            else if (m.team2Score > m.team1Score) m.winner = m.team2;
+            else m.winner = "Tie";
+
+            const modalEl = document.getElementById('resultModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+            
+            if (m.type === 'final' && m.winner !== 'Tie') {
+                state.playoffs.champion = m.winner;
+                showConfetti();
+            }
+
+            saveState();
+            renderAll();
+            
+            const toastEl = document.getElementById('liveToast');
+            if (toastEl) {
+                const toast = new bootstrap.Toast(toastEl);
+                toast.show();
+            }
+        });
     }
 });
 
@@ -243,40 +309,7 @@ function openUpdateModal(matchId) {
     modal.show();
 }
 
-document.getElementById('result-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const id = parseInt(document.getElementById('modal-match-id').value);
-    const m = state.matches.find(match => match.id === id);
-    
-    m.team1Score = parseInt(document.getElementById('team1-score').value);
-    m.team1Wickets = parseInt(document.getElementById('team1-wickets').value);
-    m.team2Score = parseInt(document.getElementById('team2-score').value);
-    m.team2Wickets = parseInt(document.getElementById('team2-wickets').value);
-    m.team1Overs = parseFloat(document.getElementById('team1-overs').value);
-    m.team2Overs = parseFloat(document.getElementById('team2-overs').value);
-    m.quota = parseFloat(document.getElementById('match-quota').value);
-    m.status = 'completed';
-
-    if (m.team1Score > m.team2Score) m.winner = m.team1;
-    else if (m.team2Score > m.team1Score) m.winner = m.team2;
-    else m.winner = "Tie";
-
-    const modalEl = document.getElementById('resultModal');
-    bootstrap.Modal.getInstance(modalEl).hide();
-    
-    // Check if it's a finals match that ends the tournament
-    if (m.type === 'final' && m.winner !== 'Tie') {
-        state.playoffs.champion = m.winner;
-        showConfetti();
-    }
-
-    saveState();
-    renderAll();
-    
-    const toast = new bootstrap.Toast(document.getElementById('liveToast'));
-    toast.show();
-});
+// Starting Point removed from here and moved to DOMContentLoaded listener above
 
 // --- POINTS TABLE CALCULATION ---
 function calculatePointsTable() {
@@ -510,8 +543,4 @@ window.generateTeamInputs = generateTeamInputs;
 window.renderPointsTable = renderPointsTable;
 window.renderPlayoffs = renderPlayoffs;
 
-// Starting Point
-window.onload = () => {
-    loadState();
-    initIcons();
-};
+// Starting Point removed from here and moved to DOMContentLoaded listener above
