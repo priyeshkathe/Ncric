@@ -1,201 +1,192 @@
 :root {
-    --bg-dark: #020617;
-    --card-glare: rgba(255, 255, 255, 0.03);
-    --card-border: rgba(255, 255, 255, 0.08);
-    --indigo-primary: #6366f1;
-    --indigo-dark: #1e1b4b;
-    --warning-gold: #fbbf24;
-    --warning-light: rgba(251, 191, 36, 0.15);
-    --cricket-green: #22c55e;
+    --bcci-navy: #002855;
+    --bcci-blue: #005999;
+    --bcci-gold: #f9cd05;
+    --light-grey: #f8fafc;
+    --border-color: #e2e8f0;
+    --success-green: #15803d;
     --brand-font: 'Outfit', sans-serif;
     --ui-font: 'Inter', sans-serif;
-    --mono-font: 'JetBrains Mono', monospace;
 }
 
 body {
-    background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 100%);
+    background-color: var(--light-grey);
     font-family: var(--ui-font);
-    min-height: 100vh;
-    color: #f1f5f9;
-    letter-spacing: -0.01em;
+    color: #1e293b;
+    overflow-x: hidden;
 }
 
-.brand-text {
-    font-family: var(--brand-font);
+.text-navy { color: var(--bcci-navy); }
+.bg-navy { background-color: var(--bcci-navy); }
+.bg-bcci-blue { background-color: var(--bcci-blue); }
+
+/* Pro Cards */
+.pro-card {
+    background: #ffffff;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Standings Table */
+.bcci-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.bcci-table thead th {
+    background-color: #f1f5f9;
+    color: var(--bcci-navy);
+    padding: 12px 16px;
+    text-transform: uppercase;
+    font-size: 0.7rem;
     font-weight: 800;
-    letter-spacing: -0.05em;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border-color);
 }
 
-/* Glassmorphism Evolved */
-.glass-card {
-    background: var(--card-glare);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--card-border);
-    border-radius: 1.5rem;
-    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+.bcci-table tbody td {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
 }
 
-.glass-card-solid {
-    background: #0f172a;
-    border: 1px solid var(--card-border);
-    border-radius: 1.5rem;
+.bcci-table tr.top-team {
+    background-color: rgba(249, 205, 5, 0.05);
 }
 
-/* Animations */
-.fade-in { animation: fadeIn 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards; }
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-slide-down { animation: slideDown 0.6s ease-out; }
-@keyframes slideDown {
-    from { transform: translateY(-30px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-/* Stats Row Hardware Feel */
-.stats-row .card {
-    border-top: 2px solid transparent;
-    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-
-.stats-row .card:hover {
-    background: rgba(255,255,255,0.06);
-    border-top-color: var(--warning-gold);
-}
-
-.tiny { font-size: 10px; font-weight: 800; }
-
-/* Match Cards - Professional Layout */
+/* Match Cards */
 .match-card {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.match-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.team-logo-placeholder {
+    width: 50px;
+    height: 50px;
+    background: #f1f5f9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--bcci-navy);
+    border: 2px solid var(--border-color);
+}
+
+.score-num {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--bcci-navy);
 }
 
 .status-badge {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    font-size: 0.65rem;
-    font-weight: 900;
-    letter-spacing: 0.05em;
-    padding: 4px 12px;
-    border-radius: 99px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    top: 10px;
+    right: 10px;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
 }
 
-.status-upcoming { background: var(--warning-gold); color: #000; }
-.status-live { background: var(--cricket-green); color: #fff; animation: pulse 2s infinite; }
-.status-completed { background: #334155; color: #cbd5e1; }
+.status-upcoming { background: #fef9c3; color: #854d0e; }
+.status-completed { background: #f1f5f9; color: #475569; }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
+/* Stat Pills */
+.stat-pill {
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    text-align: center;
 }
 
-.team-initials {
+.stat-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--bcci-navy);
+}
+
+/* Tabs */
+.nav-pills-custom .nav-link {
+    color: #64748b;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    padding: 10px 20px;
+}
+
+.nav-pills-custom .nav-link.active {
+    background-color: var(--bcci-navy);
+    color: #ffffff;
+}
+
+/* Animations */
+.animate-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Champion Overlay */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 40, 85, 0.98);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.winner-trophy {
+    width: 120px;
+    height: 120px;
+    filter: drop-shadow(0 0 30px #f9cd05);
+}
+
+.glow-text {
+    text-shadow: 0 0 20px rgba(249, 205, 5, 0.6);
+}
+
+.team-logo-placeholder {
     width: 60px;
     height: 60px;
-    background: #1e293b;
-    border-radius: 18px;
+    background: #f8fafc;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 1.2rem;
-    color: var(--warning-gold);
-    border: 1px solid var(--card-border);
-    box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+    color: var(--bcci-navy);
+    border: 2px solid var(--bcci-gold);
+    font-size: 1.1rem;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
 }
 
-.score-display {
-    font-family: var(--mono-font);
-    font-weight: 700;
-    font-size: 1.5rem;
-    letter-spacing: -1px;
-}
-
-/* Tabs - Sticky & Modern */
-.sticky-tabs {
-    position: sticky;
-    top: 80px;
-    z-index: 100;
-}
-
-.nav-pills .nav-link {
-    color: #64748b;
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-    transition: all 0.2s;
-}
-
-.nav-pills .nav-link.active {
-    background-color: var(--warning-gold);
-    color: #000;
-    box-shadow: 0 8px 24px rgba(251, 191, 36, 0.3);
-}
-
-/* Table - Brutalist Data */
-.custom-table {
-    border-collapse: separate;
-    border-spacing: 0 4px;
-}
-
-.custom-table tbody tr {
-    background: rgba(255,255,255,0.02);
-    border-radius: 8px;
-}
-
-.custom-table td {
-    padding: 1rem;
-    font-family: var(--mono-font);
-    font-size: 0.9rem;
-}
-
-/* Modal - Scorecard Style */
-.vs-circle {
-    width: 40px;
-    height: 40px;
-    background: var(--warning-gold);
-    color: #000;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    font-size: 0.8rem;
-    box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
-}
-
-.bg-indigo { background: #1e1b4b; }
-
-.hover-glow:hover {
-    box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
-}
-
-.icon-circle {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Mobile Optimizations */
-@media (max-width: 768px) {
-    .display-3 { font-size: 2.5rem; }
-    .display-6 { font-size: 1.5rem; }
-    .team-score-card h4 { font-size: 1rem; }
-    .score-display { font-size: 1.2rem; }
-    .sticky-tabs { top: 70px; }
-}
-
-.ls-wider { letter-spacing: 0.2em; }
-.tracking-widest { letter-spacing: 0.15em; }
-.tracking-tighter { letter-spacing: -0.05em; }
+.ls-1 { letter-spacing: 0.05em; }

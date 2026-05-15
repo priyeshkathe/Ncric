@@ -71,9 +71,9 @@ function generateTeamInputs() {
 
     for (let i = 1; i <= count; i++) {
         const div = document.createElement('div');
-        div.className = "col-md-6 mb-2";
+        div.className = "col-md-6 mb-3";
         div.innerHTML = `
-            <input type="text" class="form-control bg-dark border-secondary text-white team-input" 
+            <input type="text" class="form-control form-control-lg border-2 rounded-2 team-input" 
                    placeholder="Team ${i} Name" required maxlength="15">
         `;
         container.appendChild(div);
@@ -83,36 +83,37 @@ function generateTeamInputs() {
 
 document.getElementById('setup-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    
-    const name = document.getElementById('tournament-name').value;
-    const inputs = document.querySelectorAll('.team-input');
-    const teams = Array.from(inputs).map(input => input.value.trim().toUpperCase());
-    
-    if (new Set(teams).size !== teams.length) {
-        alert("Team names must be unique!");
-        return;
+    try {
+        const name = document.getElementById('tournament-name').value;
+        const inputs = document.querySelectorAll('.team-input');
+        const teams = Array.from(inputs).map(input => input.value.trim().toUpperCase());
+        
+        if (new Set(teams).size !== teams.length) {
+            alert("Team names must be unique!");
+            return;
+        }
+
+        if (teams.length < 2) {
+            alert("Please provide at least 2 teams.");
+            return;
+        }
+
+        state.active = true;
+        state.name = name;
+        state.teamCount = teams.length;
+        state.teams = teams.map(name => ({
+            name,
+            played: 0, won: 0, lost: 0, tied: 0, pts: 0,
+            runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0, nrr: 0
+        }));
+
+        generateLeagueMatches(teams);
+        saveState();
+        showDashboard();
+    } catch (err) {
+        console.error("Setup Error:", err);
+        alert("Failed to initialize tournament. Please try again.");
     }
-
-    state.active = true;
-    state.name = name;
-    state.teamCount = teams.length;
-    state.teams = teams.map(name => ({
-        name,
-        played: 0,
-        won: 0,
-        lost: 0,
-        tied: 0,
-        pts: 0,
-        runsScored: 0,
-        oversFaced: 0,
-        runsConceded: 0,
-        oversBowled: 0,
-        nrr: 0
-    }));
-
-    generateLeagueMatches(teams);
-    saveState();
-    showDashboard();
 });
 
 // --- MATCH SCHEDULING (Round Robin) ---
@@ -166,41 +167,43 @@ function renderFixtures() {
 
 function createMatchCard(match) {
     const div = document.createElement('div');
-    div.className = "col-md-6 col-lg-4 match-item animate-slide-down";
+    div.className = "col-md-6 col-lg-4 match-item animate-up";
     div.dataset.teams = `${match.team1} ${match.team2}`.toLowerCase();
     
     const isCompleted = match.status === 'completed';
     const statusClass = isCompleted ? 'status-completed' : 'status-upcoming';
-    const badgeText = isCompleted ? 'Completed' : 'Upcoming';
+    const badgeText = isCompleted ? 'Result Final' : 'Match Scheduled';
 
     div.innerHTML = `
-        <div class="card glass-card h-100 p-4 match-card shadow-lg hover-glow">
+        <div class="card pro-card h-100 p-4 match-card position-relative border-top-0 border-end-0 border-bottom-0 shadow-sm" style="border-left: 4px solid ${isCompleted ? '#cbd5e1' : 'var(--bcci-blue)'}">
             <span class="status-badge ${statusClass}">${badgeText}</span>
-            <div class="tiny text-secondary mb-3 tracking-widest text-uppercase">Match #${match.id} • ${match.type}</div>
+            <div class="small fw-bold text-muted text-uppercase mb-4 mt-1 ls-1" style="font-size: 0.65rem;">
+                Match #${match.id} • LEAGUE STAGE
+            </div>
             
-            <div class="d-flex justify-content-between align-items-center mb-4 mt-2">
-                <div class="text-center" style="flex:1">
-                    <div class="team-initials mx-auto mb-2 text-warning">${match.team1.substring(0,3)}</div>
-                    <div class="fw-bold small text-uppercase tracking-tighter">${match.team1}</div>
-                    <div class="score-display mt-1 text-warning">${isCompleted ? match.team1Score + '/' + match.team1Wickets : '0/0'}</div>
+            <div class="row align-items-center mb-4 g-0">
+                <div class="col-5 text-center">
+                    <div class="team-logo-placeholder mx-auto mb-2">${match.team1.substring(0,3)}</div>
+                    <div class="fw-bold text-navy small text-uppercase lh-1">${match.team1}</div>
+                    <div class="score-num mt-2">${isCompleted ? match.team1Score + '/' + match.team1Wickets : '-'}</div>
                 </div>
-                <div class="px-2">
-                    <div class="tiny text-secondary fw-bold text-uppercase">VS</div>
+                <div class="col-2 text-center">
+                    <div class="small fw-bold text-muted" style="font-size: 0.6rem;">VS</div>
                 </div>
-                <div class="text-center" style="flex:1">
-                    <div class="team-initials mx-auto mb-2 text-warning">${match.team2.substring(0,3)}</div>
-                    <div class="fw-bold small text-uppercase tracking-tighter">${match.team2}</div>
-                    <div class="score-display mt-1 text-warning">${isCompleted ? match.team2Score + '/' + match.team2Wickets : '0/0'}</div>
+                <div class="col-5 text-center">
+                    <div class="team-logo-placeholder mx-auto mb-2">${match.team2.substring(0,3)}</div>
+                    <div class="fw-bold text-navy small text-uppercase lh-1">${match.team2}</div>
+                    <div class="score-num mt-2">${isCompleted ? match.team2Score + '/' + match.team2Wickets : '-'}</div>
                 </div>
             </div>
 
-            <div class="border-top border-secondary border-opacity-10 pt-3 d-flex justify-content-between align-items-center">
-                <div class="small">
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                <div class="result-summary">
                     ${isCompleted ? 
-                        `<span class="text-success fw-bold tiny text-uppercase"><i data-lucide="award" class="d-inline-block me-1" style="width:10px"></i> ${match.winner === 'Tie' ? 'Match Tied' : match.winner + ' Won'}</span>` : 
-                        '<span class="text-secondary tiny text-uppercase tracking-widest">Fixture Pending</span>'}
+                        `<span class="text-navy fw-bold small text-uppercase" style="font-size: 10px;"><i data-lucide="check-circle" class="text-success d-inline-block me-1" style="width:12px"></i> ${match.winner === 'Tie' ? 'Match Tied' : match.winner + ' Won'}</span>` : 
+                        '<span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">Pre-Match</span>'}
                 </div>
-                <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="openUpdateModal(${match.id})">
+                <button class="btn btn-navy text-white bg-bcci-blue btn-sm px-3 fw-bold rounded-1" onclick="openUpdateModal(${match.id})" style="font-size: 0.65rem;">
                     ${isCompleted ? 'EDIT' : 'ENTER RESULT'}
                 </button>
             </div>
@@ -330,21 +333,21 @@ function renderPointsTable() {
 
     table.forEach((team, index) => {
         const tr = document.createElement('tr');
-        if (index === 0) tr.classList.add('border-start', 'border-warning', 'border-3');
+        if (index === 0) tr.classList.add('top-team');
         tr.innerHTML = `
-            <td class="${index < 4 ? 'text-warning fw-bold' : ''}">${index + 1}</td>
-            <td class="text-start fw-bold">${team.name}</td>
-            <td>${team.played}</td>
-            <td class="text-success">${team.won}</td>
-            <td class="text-danger">${team.lost}</td>
-            <td>${team.tied}</td>
-            <td class="text-secondary">${team.nrr}</td>
-            <td class="fw-bold fs-5">${team.pts}</td>
+            <td class="text-center fw-bold text-navy">${index + 1}</td>
+            <td class="text-start fw-bold text-navy">${team.name}</td>
+            <td class="text-center">${team.played}</td>
+            <td class="text-center text-success fw-bold">${team.won}</td>
+            <td class="text-center text-danger">${team.lost}</td>
+            <td class="text-center">${team.tied}</td>
+            <td class="text-center text-muted small">${team.nrr}</td>
+            <td class="text-center fw-bold fs-6 text-navy">${team.pts}</td>
         `;
         tbody.appendChild(tr);
     });
 
-    if (table.length > 0 && table[0].played > 0) {
+    if (table.length > 0) {
         document.getElementById('stat-winner').innerText = table[0].name;
     }
 }

@@ -13,63 +13,60 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/src/style.css">
 </head>
-<body class="bg-dark text-white">
+<body class="bg-light text-dark">
 
     <!-- Navbar -->
-    <nav class="navbar navbar-dark bg-dark sticky-top shadow-lg border-bottom border-secondary border-opacity-25">
-        <div class="container py-2">
-            <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
-                <div class="logo-box bg-warning text-dark px-2 py-1 rounded-3 me-2">
-                    <i data-lucide="trophy" style="width:20px; height:20px"></i>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-sm" style="background-color: var(--bcci-navy); border-bottom: 4px solid var(--bcci-gold);">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <div class="logo-box px-2 py-1 me-2 shadow-sm" style="background: var(--bcci-gold); color: var(--bcci-navy); border-radius: 4px;">
+                    <i data-lucide="trophy" style="width:24px; height:24px"></i>
                 </div>
-                <span class="brand-text text-uppercase tracking-tighter">Cricket <span class="text-warning">Mega</span></span>
+                <span class="brand-text text-white text-uppercase fs-4 fw-bold">STUMPS <span style="color: var(--bcci-gold)">BEYOND</span></span>
             </a>
-            <div id="reset-btn-container" class="d-none">
-                <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="confirmReset()">
-                    <i data-lucide="trash-2" class="me-1" style="width:14px; height:14px"></i> DELETE TOURNAMENT
+            <div id="reset-btn-container" class="ms-auto d-none">
+                <button class="btn btn-warning btn-sm rounded-1 px-3 fw-bold" onclick="confirmReset()">
+                    <i data-lucide="trash-2" class="me-1" style="width:14px; height:14px"></i> DELETE LEAGUE
                 </button>
             </div>
         </div>
     </nav>
 
     <!-- Main Content -->
-    <main class="container py-4">
+    <main class="container py-5">
         
         <!-- Tournament Setup Section -->
-        <section id="setup-section" class="fade-in">
+        <section id="setup-section" class="animate-up">
             <div class="row justify-content-center">
-                <div class="col-md-8 col-lg-6">
-                    <div class="card glass-card border-0 p-4 shadow-2xl">
-                        <div class="text-center mb-4">
-                            <div class="icon-circle bg-warning-light mx-auto mb-3">
-                                <i data-lucide="award" class="text-warning" style="width: 32px; height: 32px;"></i>
-                            </div>
-                            <h2 class="fw-bold display-6">New Tournament</h2>
-                            <p class="text-secondary">Setup your professional cricket league in seconds</p>
+                <div class="col-md-9 col-lg-6">
+                    <div class="card pro-card border-0 p-5 shadow-lg">
+                        <div class="text-center mb-5">
+                            <h1 class="fw-bold text-navy display-5 mb-2">Create Tournament</h1>
+                            <p class="text-muted fs-6">Experience the game, manage the glory.</p>
                         </div>
                         <form id="setup-form">
                             <div class="mb-4">
-                                <label class="text-warning small text-uppercase tracking-widest fw-bold mb-2 d-block">League Name</label>
-                                <input type="text" id="tournament-name" class="form-control form-control-lg bg-dark border-secondary border-opacity-50 text-white rounded-4 shadow-sm" placeholder="e.g. Champions Trophy 2026" required>
+                                <label class="text-navy small text-uppercase fw-bold mb-2 d-block ls-1">Tournament Title</label>
+                                <input type="text" id="tournament-name" class="form-control form-control-lg border-2 rounded-2" placeholder="e.g. World Series 2026" required>
                             </div>
                             <div class="mb-4">
-                                <label class="text-warning small text-uppercase tracking-widest fw-bold mb-2 d-block">Team Capacity</label>
-                                <select id="team-count" class="form-select form-select-lg bg-dark border-secondary border-opacity-50 text-white rounded-4 shadow-sm" onchange="generateTeamInputs()">
-                                    <option value="">Choose number of teams...</option>
-                                    <option value="2">2 Teams (Duel)</option>
+                                <label class="text-navy small text-uppercase fw-bold mb-2 d-block ls-1">Competitor Slots</label>
+                                <select id="team-count" class="form-select form-select-lg border-2 rounded-2" onchange="generateTeamInputs()">
+                                    <option value="">Select pool size...</option>
+                                    <option value="2">2 Teams (Head-to-Head)</option>
                                     <option value="3">3 Teams</option>
-                                    <option value="4">4 Teams (Classic)</option>
+                                    <option value="4">4 Teams (Pro Circuit)</option>
                                     <option value="5">5 Teams</option>
-                                    <option value="6">6 Teams (Elite)</option>
+                                    <option value="6">6 Teams (Elite League)</option>
                                     <option value="7">7 Teams</option>
-                                    <option value="8">8 Teams (Mega)</option>
+                                    <option value="8">8 Teams (Mega Championship)</option>
                                 </select>
                             </div>
-                            <div id="team-names-container" class="row g-2 mb-4">
+                            <div id="team-names-container" class="row g-3 mb-5">
                                 <!-- Dynamic Team Inputs -->
                             </div>
-                            <button type="submit" class="btn btn-warning w-full py-3 fw-bold rounded-4 shadow-lg hover-glow transform active:scale-95">
-                                GENERATE FIXTURES <i data-lucide="wand-2" class="ms-1"></i>
+                            <button type="submit" class="btn bg-bcci-blue text-white w-100 py-3 fw-bold rounded-2 fs-5 hover-lift">
+                                LAUNCH TOURNAMENT <i data-lucide="zap" class="ms-1"></i>
                             </button>
                         </form>
                     </div>
@@ -77,101 +74,88 @@
             </div>
         </section>
 
-        <!-- Dashboard Section (Hidden initially) -->
-        <section id="dashboard-section" class="d-none">
-            <div class="dashboard-header text-center mb-5 animate-slide-down">
-                <div class="badge bg-warning text-dark px-3 py-1 rounded-pill mb-2 fw-bold small text-uppercase tracking-widest">Live Management</div>
-                <h1 id="display-tournament-name" class="display-3 fw-bold text-white mb-2 tracking-tighter"></h1>
-                <div class="d-flex justify-content-center gap-3">
-                    <span class="text-secondary small"><i data-lucide="play-circle" class="me-1" style="width:14px"></i> Auto-Syncing</span>
-                    <span class="text-secondary small"><i data-lucide="shield-check" class="me-1" style="width:14px"></i> Data Secured</span>
-                </div>
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="d-none animate-up">
+            <div class="text-center mb-5">
+                <span class="badge bg-bcci-blue px-3 py-1 mb-2 text-uppercase fw-bold tracking-widest" style="font-size: 0.6rem;">Official Scorecard</span>
+                <h1 id="display-tournament-name" class="display-4 fw-bold text-navy mb-0 tracking-tighter"></h1>
+                <hr class="w-25 mx-auto border-2 border-warning opacity-75">
             </div>
 
-            <!-- Stats Bar -->
-            <div class="row g-3 mb-5 text-center stats-row">
+            <!-- Professional Stats -->
+            <div class="row g-4 mb-5">
                 <div class="col-6 col-md-3">
-                    <div class="card glass-card p-3 border-0 h-100 hover-lift">
-                        <div class="text-secondary mb-1"><i data-lucide="layers" style="width:16px"></i></div>
-                        <h2 id="stat-matches" class="fw-bold mb-0">0</h2>
-                        <span class="text-secondary tiny text-uppercase tracking-widest">Matches</span>
+                    <div class="stat-pill shadow-sm">
+                        <span class="stat-label">Total Fixtures</span>
+                        <span id="stat-matches" class="stat-value">0</span>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="card glass-card p-3 border-0 h-100 highlight-gold hover-lift">
-                        <div class="text-warning mb-1"><i data-lucide="check-circle" style="width:16px"></i></div>
-                        <h2 id="stat-completed" class="fw-bold mb-0">0</h2>
-                        <span class="text-secondary tiny text-uppercase tracking-widest">Finished</span>
+                    <div class="stat-pill shadow-sm">
+                        <span class="stat-label">Completed</span>
+                        <span id="stat-completed" class="stat-value" style="color: var(--success-green)">0</span>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="card glass-card p-3 border-0 h-100 hover-lift">
-                        <div class="text-secondary mb-1"><i data-lucide="users-2" style="width:16px"></i></div>
-                        <h2 id="stat-teams" class="fw-bold mb-0">0</h2>
-                        <span class="text-secondary tiny text-uppercase tracking-widest">Squads</span>
+                    <div class="stat-pill shadow-sm">
+                        <span class="stat-label">Franchises</span>
+                        <span id="stat-teams" class="stat-value">0</span>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="card glass-card p-3 border-0 h-100 active-glow hover-lift">
-                        <div class="text-success mb-1"><i data-lucide="crown" style="width:16px"></i></div>
-                        <h2 id="stat-winner" class="fw-bold mb-0 text-success fs-4">---</h2>
-                        <span class="text-secondary tiny text-uppercase tracking-widest">Top Rated</span>
+                    <div class="stat-pill shadow-sm" style="border-bottom: 4px solid var(--bcci-gold)">
+                        <span class="stat-label">Current Leader</span>
+                        <span id="stat-winner" class="stat-value fs-5">---</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Tabs Navigation -->
-            <div class="tabs-wrapper mb-5 sticky-tabs">
-                <ul class="nav nav-pills justify-content-center bg-dark p-1 rounded-pill glass-card mx-auto max-w-fit" id="tourneyTabs" role="tablist">
-                    <li class="nav-item">
-                        <button class="nav-link active rounded-pill px-4 py-2" data-bs-toggle="pill" data-bs-target="#fixtures">Fixtures</button>
-                    </li>
-                    <li class="nav-item mx-1">
-                        <button class="nav-link rounded-pill px-4 py-2" data-bs-toggle="pill" data-bs-target="#points-table" onclick="renderPointsTable()">Points Table</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link rounded-pill px-4 py-2" data-bs-toggle="pill" data-bs-target="#playoffs" onclick="renderPlayoffs()">Finals</button>
-                    </li>
-                </ul>
+            <!-- Tabbed Navigation -->
+            <div class="d-flex justify-content-center mb-5">
+                <div class="nav nav-pills nav-pills-custom bg-white p-1 rounded-1 shadow-sm border" id="tourneyTabs" role="tablist">
+                    <button class="nav-link active rounded-1" data-bs-toggle="pill" data-bs-target="#fixtures">Fixtures</button>
+                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#points-table" onclick="renderPointsTable()">Point Standings</button>
+                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#playoffs" onclick="renderPlayoffs()">Playoffs</button>
+                </div>
             </div>
 
             <div class="tab-content" id="nav-tabContent">
                 <!-- Fixtures Tab -->
                 <div class="tab-pane fade show active" id="fixtures">
-                    <div class="section-header d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
-                        <h3 class="fw-bold mb-0">League Schedule</h3>
-                        <div class="search-box position-relative">
-                            <i data-lucide="search" class="position-absolute ms-3 top-50 translate-middle-y text-secondary" style="width:16px"></i>
-                            <input type="text" id="match-search" class="form-control rounded-pill bg-dark border-secondary px-5 text-white" placeholder="Search team fixtures..." oninput="filterMatches(this.value)">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded-2 border shadow-sm">
+                        <h4 class="fw-bold mb-0 text-navy"><i data-lucide="calendar" class="me-2 text-primary"></i> League Schedule</h4>
+                        <div class="position-relative w-100" style="max-width: 300px;">
+                            <input type="text" id="match-search" class="form-control ps-5 rounded-1 border-2" placeholder="Search by team..." oninput="filterMatches(this.value)">
+                            <i data-lucide="search" class="position-absolute start-0 top-50 translate-middle-y ms-3 text-muted" style="width:16px"></i>
                         </div>
                     </div>
-                    <div id="fixtures-container" class="row g-4 mb-5">
+                    <div id="fixtures-container" class="row g-4">
                         <!-- Match Cards -->
                     </div>
                 </div>
 
                 <!-- Points Table Tab -->
                 <div class="tab-pane fade" id="points-table">
-                    <div class="card glass-card border-0 overflow-hidden mb-5">
-                        <div class="card-header bg-dark border-secondary bg-opacity-50 py-3 px-4">
-                            <h4 class="mb-0 fw-bold"><i data-lucide="list-ordered" class="me-2 text-warning"></i> Standings</h4>
+                    <div class="card pro-card border-0 overflow-hidden shadow-sm">
+                        <div class="card-header bg-white border-bottom py-3 px-4">
+                            <h5 class="mb-0 fw-bold text-navy"><i data-lucide="trending-up" class="me-2 text-primary"></i> League Standings</h5>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-dark table-hover align-middle mb-0 custom-table">
-                                <thead class="bg-indigo-dark">
-                                    <tr class="text-secondary small text-uppercase">
-                                        <th class="ps-4">POS</th>
-                                        <th class="text-start">TEAM</th>
-                                        <th>P</th>
-                                        <th>W</th>
-                                        <th>L</th>
-                                        <th>T</th>
-                                        <th>NRR</th>
-                                        <th class="pe-4">PTS</th>
+                            <table class="bcci-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">Pos</th>
+                                        <th class="text-start">Team</th>
+                                        <th class="text-center">Pl</th>
+                                        <th class="text-center">W</th>
+                                        <th class="text-center">L</th>
+                                        <th class="text-center">T</th>
+                                        <th class="text-center">NRR</th>
+                                        <th class="text-center">Pts</th>
                                     </tr>
                                 </thead>
                                 <tbody id="points-tbody">
-                                    <!-- Points Table Data -->
+                                    <!-- Dynamic Rows -->
                                 </tbody>
                             </table>
                         </div>
@@ -181,13 +165,10 @@
                 <!-- Playoffs Tab -->
                 <div class="tab-pane fade" id="playoffs">
                     <div id="playoffs-container">
-                        <!-- Playoff Brackets -->
-                         <div class="text-center py-5 glass-card" id="playoff-locked">
-                            <div class="lock-icon-bg mb-4">
-                                <i data-lucide="lock" class="text-secondary" style="width: 48px; height: 48px;"></i>
-                            </div>
-                            <h4 class="text-white fw-bold">Post-Season Locked</h4>
-                            <p class="text-secondary">Finish all league matches to auto-generate the Playoffs</p>
+                         <div class="text-center py-5 bg-white border rounded-2" id="playoff-locked">
+                            <div class="mb-3"><i data-lucide="lock" class="text-muted" style="width: 48px; height: 48px;"></i></div>
+                            <h4 class="text-navy fw-bold">Post-Season Locked</h4>
+                            <p class="text-muted">Generate all league results to unlock the Qualifiers.</p>
                          </div>
                     </div>
                 </div>
@@ -195,95 +176,83 @@
         </section>
     </main>
 
-    <!-- Match Result Modal (Redesigned) -->
+    <!-- Score Update Modal -->
     <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content glass-card-solid border-0 text-white overflow-hidden shadow-2xl">
-                <div class="modal-header border-0 bg-dark py-3 px-4">
-                    <h5 class="modal-title fw-bold text-uppercase tracking-tighter"><i data-lucide="edit-3" class="me-2 text-warning"></i> Update Match Scorecard</h5>
+            <div class="modal-content border-0 shadow-2xl rounded-2 overflow-hidden">
+                <div class="modal-header bg-navy text-white py-3 px-4" style="background: var(--bcci-navy)">
+                    <h5 class="modal-title fw-bold text-uppercase fs-6 tracking-widest">Official Score Update</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-0">
+                <div class="modal-body p-5">
                     <form id="result-form">
                         <input type="hidden" id="modal-match-id">
                         
-                        <!-- Scoreboard Area -->
-                        <div class="scoreboard-grid p-4 bg-gradient-to-br">
-                            <div class="row align-items-center">
-                                <!-- Team 1 -->
-                                <div class="col-md-5">
-                                    <div class="team-score-card p-3 rounded-4 bg-indigo bg-opacity-50 border border-secondary border-opacity-25 text-center">
-                                        <h4 id="team1-label" class="fw-bold mb-3 text-warning">TEAM A</h4>
-                                        <div class="d-flex gap-2 justify-content-center">
-                                            <div class="flex-grow-1">
-                                                <label class="tiny text-secondary text-uppercase mb-1">Runs</label>
-                                                <input type="number" id="team1-score" class="form-control bg-dark border-0 text-white text-center fs-3 fw-bold" placeholder="0" required min="0">
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <label class="tiny text-secondary text-uppercase mb-1">Wickets</label>
-                                                <input type="number" id="team1-wickets" class="form-control bg-dark border-0 text-white text-center fs-3 fw-bold" placeholder="0" required min="0" max="10">
-                                            </div>
-                                        </div>
+                        <div class="row g-5 align-items-center mb-5">
+                            <div class="col-md-5">
+                                <div class="p-4 bg-light border rounded-3 text-center">
+                                    <h5 id="team1-label" class="fw-bold text-navy mb-4">TEAM A</h5>
+                                    <div class="mb-3">
+                                        <label class="d-block small text-muted text-uppercase fw-bold mb-1">Runs</label>
+                                        <input type="number" id="team1-score" class="form-control form-control-lg text-center fw-bold text-navy border-2" placeholder="0" required min="0">
+                                    </div>
+                                    <div>
+                                        <label class="d-block small text-muted text-uppercase fw-bold mb-1">Wickets</label>
+                                        <input type="number" id="team1-wickets" class="form-control form-control-lg text-center fw-bold text-navy border-2" placeholder="0" required min="0" max="10">
                                     </div>
                                 </div>
-                                
-                                <!-- VS Divider -->
-                                <div class="col-md-2 text-center py-3">
-                                    <div class="vs-circle mx-auto">VS</div>
-                                </div>
-                                
-                                <!-- Team 2 -->
-                                <div class="col-md-5">
-                                    <div class="team-score-card p-3 rounded-4 bg-indigo bg-opacity-50 border border-secondary border-opacity-25 text-center">
-                                        <h4 id="team2-label" class="fw-bold mb-3 text-warning">TEAM B</h4>
-                                        <div class="d-flex gap-2 justify-content-center">
-                                            <div class="flex-grow-1">
-                                                <label class="tiny text-secondary text-uppercase mb-1">Runs</label>
-                                                <input type="number" id="team2-score" class="form-control bg-dark border-0 text-white text-center fs-3 fw-bold" placeholder="0" required min="0">
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <label class="tiny text-secondary text-uppercase mb-1">Wickets</label>
-                                                <input type="number" id="team2-wickets" class="form-control bg-dark border-0 text-white text-center fs-3 fw-bold" placeholder="0" required min="0" max="10">
-                                            </div>
-                                        </div>
+                            </div>
+                            
+                            <div class="col-md-2 text-center h-100 mt-5">
+                                <div class="fw-black text-muted fs-4">VS</div>
+                            </div>
+                            
+                            <div class="col-md-5">
+                                <div class="p-4 bg-light border rounded-3 text-center">
+                                    <h5 id="team2-label" class="fw-bold text-navy mb-4">TEAM B</h5>
+                                    <div class="mb-3">
+                                        <label class="d-block small text-muted text-uppercase fw-bold mb-1">Runs</label>
+                                        <input type="number" id="team2-score" class="form-control form-control-lg text-center fw-bold text-navy border-2" placeholder="0" required min="0">
+                                    </div>
+                                    <div>
+                                        <label class="d-block small text-muted text-uppercase fw-bold mb-1">Wickets</label>
+                                        <input type="number" id="team2-wickets" class="form-control form-control-lg text-center fw-bold text-navy border-2" placeholder="0" required min="0" max="10">
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Match Details Area -->
-                        <div class="p-4 bg-dark">
-                            <div class="row g-3">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label text-warning small text-uppercase fw-bold tracking-widest">
-                                        <i data-lucide="settings-2" class="me-1" style="width:14px"></i> Match Quota (Overs per side)
-                                    </label>
-                                    <input type="number" step="0.1" id="match-quota" class="form-control bg-indigo border-secondary border-opacity-50 text-white p-3 rounded-pill" placeholder="e.g. 20.0 (Standard for T20)" required min="0.1">
+                        <div class="bg-gray-100 p-4 rounded-2 mb-5">
+                            <div class="row g-3 justify-content-center">
+                                <div class="col-md-4">
+                                    <label class="small text-navy fw-bold text-uppercase mb-2 d-block">Quota (Overs/Side)</label>
+                                    <input type="number" step="0.1" id="match-quota" class="form-control text-center bg-white border-2" placeholder="e.g. 20.0" required>
                                 </div>
-                                <div class="col-6">
-                                    <label class="tiny text-secondary text-uppercase mb-1">Team A Overs Faced</label>
-                                    <input type="number" step="0.1" id="team1-overs" class="form-control bg-dark border-secondary text-white text-center rounded-pill" placeholder="e.g. 20.0" required>
+                                <div class="col-md-4">
+                                    <label class="small text-navy fw-bold text-uppercase mb-2 d-block">Team A Faced</label>
+                                    <input type="number" step="0.1" id="team1-overs" class="form-control text-center bg-white border-2" placeholder="e.g. 20.0" required>
                                 </div>
-                                <div class="col-6">
-                                    <label class="tiny text-secondary text-uppercase mb-1">Team B Overs Faced</label>
-                                    <input type="number" step="0.1" id="team2-overs" class="form-control bg-dark border-secondary text-white text-center rounded-pill" placeholder="e.g. 18.2" required>
-                                </div>
-                                <div class="col-12 mt-3 p-3 rounded-4 bg-warning bg-opacity-10 border border-warning border-opacity-20">
-                                    <p class="tiny text-warning mb-1 fw-bold text-uppercase"><i data-lucide="info" class="me-1" style="width:12px"></i> Important NRR Tip:</p>
-                                    <p class="tiny text-secondary mb-0">If a team is <strong>All Out</strong>, their "Overs Faced" should be entered as the <strong>Full Match Quota</strong> (e.g. 20.0), no matter when they got out.</p>
+                                <div class="col-md-4">
+                                    <label class="small text-navy fw-bold text-uppercase mb-2 d-block">Team B Faced</label>
+                                    <input type="number" step="0.1" id="team2-overs" class="form-control text-center bg-white border-2" placeholder="e.g. 19.4" required>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="modal-footer border-0 p-4 pt-0">
-                            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-warning rounded-pill px-5 py-2 fw-bold shadow-lg">FINALIZE RESULT <i data-lucide="check" class="ms-1"></i></button>
+                        <div class="text-center p-3 mb-5 border-start border-warning border-4 bg-warning bg-opacity-10 rounded-1">
+                            <p class="small text-navy mb-0"><strong>NRR Guide:</strong> If a team gets <strong>All Out</strong>, their "Overs Faced" must be entered as the full match quota (e.g. 20.0).</p>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-light flex-grow-1 py-3 fw-bold border" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn bg-bcci-blue text-white flex-grow-1 py-3 fw-bold shadow-lg">Finalize scorecard</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
 
     <!-- Final Champion Screen (Overlay) -->
     <div id="champion-overlay" class="overlay d-none">
