@@ -16,16 +16,16 @@
 <body class="bg-light text-dark">
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-sm" style="background-color: var(--bcci-navy); border-bottom: 4px solid var(--bcci-gold);">
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top shadow-sm">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="#">
-                <div class="logo-box px-2 py-1 me-2 shadow-sm" style="background: var(--bcci-gold); color: var(--bcci-navy); border-radius: 4px;">
+                <div class="logo-box px-2 py-1 me-2 shadow-sm">
                     <i data-lucide="trophy" style="width:24px; height:24px"></i>
                 </div>
-                <span class="brand-text text-white text-uppercase fs-4 fw-bold">STUMPS <span style="color: var(--bcci-gold)">BEYOND</span></span>
+                <span class="brand-text text-navy text-uppercase fs-4 fw-bold">STUMPS <span style="color: var(--bcci-gold)">BEYOND</span></span>
             </a>
             <div id="reset-btn-container" class="ms-auto d-none">
-                <button class="btn btn-warning btn-sm rounded-1 px-3 fw-bold" onclick="confirmReset()">
+                <button class="btn btn-warning btn-sm rounded-1 px-3 fw-bold" id="reset-tournament-btn">
                     <i data-lucide="trash-2" class="me-1" style="width:14px; height:14px"></i> DELETE LEAGUE
                 </button>
             </div>
@@ -51,7 +51,7 @@
                             </div>
                             <div class="mb-4">
                                 <label class="text-navy small text-uppercase fw-bold mb-2 d-block ls-1">Competitor Slots</label>
-                                <select id="team-count" class="form-select form-select-lg border-2 rounded-2" onchange="generateTeamInputs()">
+                                <select id="team-count" class="form-select form-select-lg border-2 rounded-2">
                                     <option value="">Select pool size...</option>
                                     <option value="2">2 Teams (Head-to-Head)</option>
                                     <option value="3">3 Teams</option>
@@ -114,8 +114,8 @@
             <div class="d-flex justify-content-center mb-5">
                 <div class="nav nav-pills nav-pills-custom bg-white p-1 rounded-1 shadow-sm border" id="tourneyTabs" role="tablist">
                     <button class="nav-link active rounded-1" data-bs-toggle="pill" data-bs-target="#fixtures">Fixtures</button>
-                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#points-table" onclick="renderPointsTable()">Point Standings</button>
-                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#playoffs" onclick="renderPlayoffs()">Playoffs</button>
+                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#points-table" id="view-points-btn">Point Standings</button>
+                    <button class="nav-link rounded-1" data-bs-toggle="pill" data-bs-target="#playoffs" id="view-playoffs-btn">Playoffs</button>
                 </div>
             </div>
 
@@ -125,7 +125,7 @@
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded-2 border shadow-sm">
                         <h4 class="fw-bold mb-0 text-navy"><i data-lucide="calendar" class="me-2 text-primary"></i> League Schedule</h4>
                         <div class="position-relative w-100" style="max-width: 300px;">
-                            <input type="text" id="match-search" class="form-control ps-5 rounded-1 border-2" placeholder="Search by team..." oninput="filterMatches(this.value)">
+                            <input type="text" id="match-search" class="form-control ps-5 rounded-1 border-2" placeholder="Search by team...">
                             <i data-lucide="search" class="position-absolute start-0 top-50 translate-middle-y ms-3 text-muted" style="width:16px"></i>
                         </div>
                     </div>
@@ -263,7 +263,7 @@
                 </div>
                 <h1 class="display-3 fw-bold text-white mb-2">CHAMPIONS!</h1>
                 <h1 id="champion-team-name" class="display-1 fw-bold text-warning glow-text mb-4">MI</h1>
-                <button class="btn btn-outline-warning rounded-pill px-5 py-3" onclick="closeChampion()">VIEW STANDINGS</button>
+                <button class="btn btn-outline-warning rounded-pill px-5 py-3" id="close-champion-btn">VIEW STANDINGS</button>
             </div>
         </div>
     </div>

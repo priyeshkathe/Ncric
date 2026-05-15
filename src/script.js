@@ -84,8 +84,7 @@ function generateTeamInputs() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log("Stumps & Beyond Initialized");
     loadState();
-    initIcons();
-
+    
     // Setup Form Listener
     const setupForm = document.getElementById('setup-form');
     if (setupForm) {
@@ -139,6 +138,42 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Team Count Choice Listener
+    const teamCountSelect = document.getElementById('team-count');
+    if (teamCountSelect) {
+        teamCountSelect.addEventListener('change', generateTeamInputs);
+    }
+
+    // Search Listener
+    const searchInput = document.getElementById('match-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => filterMatches(e.target.value));
+    }
+
+    // Reset Button
+    const resetBtn = document.getElementById('reset-tournament-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', confirmReset);
+    }
+
+    // View Points Button
+    const viewPointsBtn = document.getElementById('view-points-btn');
+    if (viewPointsBtn) {
+        viewPointsBtn.addEventListener('click', renderPointsTable);
+    }
+
+    // View Playoffs Button
+    const viewPlayoffsBtn = document.getElementById('view-playoffs-btn');
+    if (viewPlayoffsBtn) {
+        viewPlayoffsBtn.addEventListener('click', renderPlayoffs);
+    }
+
+    // Close Champion Button
+    const closeChampBtn = document.getElementById('close-champion-btn');
+    if (closeChampBtn) {
+        closeChampBtn.addEventListener('click', closeChampion);
+    }
+
     // Result Form Listener
     const resultForm = document.getElementById('result-form');
     if (resultForm) {
@@ -180,6 +215,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    initIcons();
 });
 
 // --- MATCH SCHEDULING (Round Robin) ---
