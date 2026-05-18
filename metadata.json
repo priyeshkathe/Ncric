@@ -1,6 +1,6 @@
 {
-  "name": "Cricket Mega Tournament Manager",
-  "description": "A professional local tournament management system with automated fixtures, points table, and local storage.",
+  "name": "Stumps Beyond - Pro Cricket Hub",
+  "description": "Professional cricket tournament management platform with cloud sync, player tracking, and public broadcast capabilities.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

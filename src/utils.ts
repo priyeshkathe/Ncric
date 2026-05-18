@@ -1,4 +1,79 @@
-import { Match, Team } from './types';
+import { Match, Team, Player, PlayerPerformance, TournamentState } from './types';
+
+export const calculatePlayerStats = (teams: Team[], matches: Match[]): Player[] => {
+    const playerMap: { [key: string]: Player } = {};
+
+    // Initialize players from team lists
+    teams.forEach(team => {
+        if (team.players) {
+            team.players.forEach(playerName => {
+                const key = `${playerName.toLowerCase().trim()}-${team.name.toLowerCase().trim()}`;
+                playerMap[key] = {
+                    name: playerName,
+                    team: team.name,
+                    runs: 0,
+                    wickets: 0,
+                    matches: 0
+                };
+            });
+        }
+    });
+
+    // Aggregate stats from matches
+    matches.filter(m => m.status === 'completed').forEach(m => {
+        if (m.playerPerformances) {
+            const processPerf = (p: PlayerPerformance, teamName: string) => {
+                const key = `${p.playerName.toLowerCase().trim()}-${teamName.toLowerCase().trim()}`;
+                if (!playerMap[key]) {
+                    playerMap[key] = { name: p.playerName, team: teamName, runs: 0, wickets: 0, matches: 0 };
+                }
+                playerMap[key].runs += (Number(p.runs) || 0);
+                playerMap[key].wickets += (Number(p.wickets) || 0);
+                playerMap[key].matches += 1;
+            };
+
+            m.playerPerformances.team1Players.forEach(p => processPerf(p, m.team1));
+            m.playerPerformances.team2Players.forEach(p => processPerf(p, m.team2));
+        }
+    });
+
+    return Object.values(playerMap)
+        .filter(p => p.runs > 0 || p.wickets > 0)
+        .sort((a, b) => b.runs - a.runs || b.wickets - a.wickets);
+};
+
+export const calculateCareerStats = (tournaments: TournamentState[]): Player[] => {
+    const careerMap: { [key: string]: Player } = {};
+
+    tournaments.forEach(t => {
+        t.matches.filter(m => m.status === 'completed').forEach(m => {
+            if (m.playerPerformances) {
+                const processPerf = (p: PlayerPerformance) => {
+                    const nameKey = p.playerName.trim().toLowerCase();
+                    if (!careerMap[nameKey]) {
+                        careerMap[nameKey] = {
+                            name: p.playerName.trim(),
+                            team: "VARIOUS",
+                            runs: 0,
+                            wickets: 0,
+                            matches: 0
+                        };
+                    }
+                    careerMap[nameKey].runs += (Number(p.runs) || 0);
+                    careerMap[nameKey].wickets += (Number(p.wickets) || 0);
+                    careerMap[nameKey].matches += 1;
+                };
+
+                m.playerPerformances.team1Players.forEach(p => processPerf(p));
+                m.playerPerformances.team2Players.forEach(p => processPerf(p));
+            }
+        });
+    });
+
+    return Object.values(careerMap)
+        .filter(p => p.matches > 0)
+        .sort((a, b) => b.runs - a.runs || b.wickets - a.wickets);
+};
 
 export const calculatePointsTable = (teams: Team[], matches: Match[]): Team[] => {
     // Reset stats

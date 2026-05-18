@@ -1,6 +1,12 @@
 export type MatchType = 'league' | 'semi-final' | 'final';
 export type MatchStatus = 'upcoming' | 'completed';
 
+export interface PlayerPerformance {
+    playerName: string;
+    runs: number;
+    wickets: number;
+}
+
 export interface Match {
     id: number;
     team1: string;
@@ -15,6 +21,18 @@ export interface Match {
     status: MatchStatus;
     winner: string | 'Tie' | null;
     type: MatchType;
+    playerPerformances?: {
+        team1Players: PlayerPerformance[];
+        team2Players: PlayerPerformance[];
+    };
+}
+
+export interface Player {
+    name: string;
+    team: string;
+    runs: number;
+    wickets: number;
+    matches: number;
 }
 
 export interface Team {
@@ -29,9 +47,11 @@ export interface Team {
     runsConceded: number;
     oversBowled: number;
     nrr: string | number;
+    players?: string[]; // List of player names
 }
 
 export interface TournamentState {
+    id?: string;
     active: boolean;
     name: string;
     teamCount: number;
@@ -40,4 +60,10 @@ export interface TournamentState {
     playoffs: {
         champion: string | null;
     };
+    creatorId?: string;
+    creatorEmail?: string;
+    createdAt?: number;
+    isPublic?: boolean;
 }
+
+export type AppMode = 'timepass' | 'cloud';
