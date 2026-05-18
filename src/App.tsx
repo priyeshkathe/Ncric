@@ -19,7 +19,8 @@ import {
     deleteDoc,
     serverTimestamp,
     getDoc,
-    increment
+    increment,
+    getDocFromServer
 } from 'firebase/firestore';
 
 const STORAGE_KEY = "cricket_tourney_data_react";
@@ -70,7 +71,11 @@ const App: React.FC = () => {
 
     const [state, setState] = useState<TournamentState>(() => {
         const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // If we have saved state, ensure it stays active if it was
+            return parsed;
+        }
         return {
             active: false,
             name: "",
@@ -80,6 +85,36 @@ const App: React.FC = () => {
             playoffs: { champion: null }
         };
     });
+
+    // Local Roster persistence for Timepass mode
+    useEffect(() => {
+        if (!user) {
+            const savedPlayers = localStorage.getItem(STORAGE_KEY + "_players");
+            if (savedPlayers) {
+                setUserPlayers(JSON.parse(savedPlayers));
+            }
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (!user && appMode === 'timepass') {
+            localStorage.setItem(STORAGE_KEY + "_players", JSON.stringify(userPlayers));
+        }
+    }, [userPlayers, appMode, user]);
+
+    // Connect Test
+    useEffect(() => {
+        const testConnection = async () => {
+          try {
+            await getDocFromServer(doc(db, 'test', 'connection'));
+          } catch (error: any) {
+            if(error?.message?.includes('offline')) {
+              console.error("Firebase appears to be offline. Check configuration.");
+            }
+          }
+        };
+        testConnection();
+    }, []);
 
     // Auth Observer
     useEffect(() => {
@@ -92,15 +127,38 @@ const App: React.FC = () => {
 
     // Cloud Tournaments Observer
     useEffect(() => {
-        const q = query(collection(db, "tournaments"), where("isPublic", "==", true));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TournamentState));
-            setCloudTournaments(docs);
+        const qPublic = query(collection(db, "tournaments"), where("isPublic", "==", true));
+        const unsubscribePublic = onSnapshot(qPublic, (snapshot) => {
+            const publicDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TournamentState));
+            setCloudTournaments(prev => {
+                const map = new Map<string, TournamentState>(prev.map(t => [t.id!, t]));
+                publicDocs.forEach(t => map.set(t.id!, t));
+                return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            });
         }, (error) => {
-            handleFirestoreError(error, OperationType.LIST, "tournaments");
+            handleFirestoreError(error, OperationType.LIST, "public/tournaments");
         });
-        return () => unsubscribe();
-    }, []);
+
+        let unsubscribeUser: (() => void) | undefined;
+        if (user) {
+            const qUser = query(collection(db, "tournaments"), where("creatorId", "==", user.uid));
+            unsubscribeUser = onSnapshot(qUser, (snapshot) => {
+                const userDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TournamentState));
+                setCloudTournaments(prev => {
+                    const map = new Map<string, TournamentState>(prev.map(t => [t.id!, t]));
+                    userDocs.forEach(t => map.set(t.id!, t));
+                    return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                });
+            }, (error) => {
+                handleFirestoreError(error, OperationType.LIST, "user/tournaments");
+            });
+        }
+
+        return () => {
+            unsubscribePublic();
+            if (unsubscribeUser) unsubscribeUser();
+        };
+    }, [user]);
 
     // Sync state with cloud if in cloud mode
     useEffect(() => {
@@ -136,7 +194,7 @@ const App: React.FC = () => {
 
     // Persist State
     useEffect(() => {
-        if (appMode === 'timepass' && state.active) {
+        if (state.active && (appMode === 'timepass' || appMode === null)) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }
     }, [state, appMode]);
@@ -430,6 +488,17 @@ const App: React.FC = () => {
         }());
     };
 
+    const handleClearLocal = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (window.confirm("🗑️ Permanent Wipe: Delete your local tournament data?")) {
+            localStorage.removeItem(STORAGE_KEY);
+            if (appMode === 'timepass') {
+                setState({ active: false, name: "", teamCount: 0, teams: [], matches: [], playoffs: { champion: null } });
+            }
+            window.location.reload(); // Hard refresh to clear all buffers
+        }
+    };
+
     const handleViewTournament = (t: TournamentState) => {
         setAppMode('cloud');
         setState(t);
@@ -467,7 +536,7 @@ const App: React.FC = () => {
                             </div>
                         )}
                         {state.active && canEdit && (
-                            <button onClick={confirmReset} className="hidden md:flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-black py-1.5 px-4 rounded text-[10px] shadow-lg uppercase tracking-widest">
+                            <button onClick={confirmReset} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-black py-1.5 px-4 rounded text-[10px] shadow-lg uppercase tracking-widest transition-all active:scale-95">
                                 <Trash2 size={12} /> {appMode === 'cloud' ? 'PURGE CLOUD' : 'WIPE LOCAL'}
                             </button>
                         )}
@@ -489,6 +558,7 @@ const App: React.FC = () => {
                         onViewTournament={handleViewTournament}
                         user={user}
                         onManagePlayers={() => setShowPlayerManager(true)}
+                        onClearLocal={handleClearLocal}
                     />
                 ) : !state.active ? (
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
@@ -783,7 +853,8 @@ const LandingPage: React.FC<{
     onViewTournament: (t: TournamentState) => void;
     user: User | null;
     onManagePlayers: () => void;
-}> = ({ cloudTournaments, onSelectMode, onViewTournament, user, onManagePlayers }) => {
+    onClearLocal: (e: React.MouseEvent) => void;
+}> = ({ cloudTournaments, onSelectMode, onViewTournament, user, onManagePlayers, onClearLocal }) => {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl mx-auto space-y-12">
             <div className="text-center py-12">
@@ -804,8 +875,45 @@ const LandingPage: React.FC<{
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
+                {/* QUICK RESUME - ONLY SHOWS IF LOCAL DATA EXISTS */}
+                {localStorage.getItem(STORAGE_KEY) && (
+                    <div className="md:col-span-2 relative group">
+                        <motion.div 
+                            whileHover={{ y: -5 }}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => onSelectMode('timepass')}
+                            className="bg-white border-4 border-amber-400 p-8 rounded-[3rem] shadow-2xl overflow-hidden cursor-pointer flex flex-col md:flex-row justify-between items-center gap-6"
+                        >
+                            <div className="flex items-center gap-6">
+                                <div className="p-5 bg-amber-100 rounded-3xl text-amber-600">
+                                    <Clock size={42} strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <div className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] mb-1">Active Local Tournament</div>
+                                    <h3 className="text-4xl font-black text-navy uppercase italic tracking-tighter">{JSON.parse(localStorage.getItem(STORAGE_KEY)!).name}</h3>
+                                    <p className="text-gray-400 text-[10px] font-bold uppercase mt-1">Ready to resume • stored on this device</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => onSelectMode('timepass')}
+                                className="bg-navy text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl whitespace-nowrap"
+                            >
+                                CONTINUE MATCHES
+                            </button>
+                        </motion.div>
+                        <button 
+                            onClick={onClearLocal}
+                            className="absolute -top-4 -right-4 p-3 bg-red-500 text-white rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 active:scale-95 border-4 border-white"
+                            title="Wipe Local Data"
+                        >
+                            <Trash2 size={20} />
+                        </button>
+                    </div>
+                )}
+
                 {/* PRO MODE */}
-                <motion.div whileHover={{ y: -5 }} className="bg-navy p-8 rounded-3xl text-white shadow-2xl relative overflow-hidden group">
+                <motion.div whileHover={{ y: -5 }} className="bg-navy p-8 rounded-[3rem] text-white shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
                         <Globe size={120} />
                     </div>
@@ -813,23 +921,23 @@ const LandingPage: React.FC<{
                         <div className="bg-white/10 w-fit p-4 rounded-2xl">
                             <Plus size={32} className="text-amber-400" />
                         </div>
-                        <h2 className="text-4xl font-black italic tracking-tighter">PRO PERSISTENT</h2>
-                        <ul className="space-y-3 opacity-70 text-xs font-bold uppercase tracking-widest">
-                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div> CLOUD DATABASE SYNC</li>
-                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div> PUBLIC VISIBILITY</li>
-                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div> PLAYER CAREER TRACKING</li>
+                        <h2 className="text-4xl font-black italic tracking-tighter">PRO SERIES</h2>
+                        <ul className="space-y-3 opacity-70 text-[10px] font-black uppercase tracking-widest">
+                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div> CLOUD DATABASE PERSISTENCE</li>
+                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div> PUBLIC TOURNAMENT GALLERY</li>
+                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div> GLOBAL PLAYER CAREERS</li>
                         </ul>
                         <button 
                             onClick={() => onSelectMode('cloud')}
-                            className="w-full bg-white text-navy py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-amber-400 transition-colors shadow-xl"
+                            className="w-full bg-white text-navy py-5 rounded-[2rem] font-black uppercase tracking-widest hover:bg-amber-400 transition-colors shadow-xl"
                         >
-                            {user ? "CREATE PRO SERIES" : "AUTHENTICATE & CREATE"}
+                            {user ? "START NEW PRO SERIES" : "SIGN IN & CREATE"}
                         </button>
                     </div>
                 </motion.div>
 
                 {/* TIMEPASS MODE */}
-                <motion.div whileHover={{ y: -5 }} className="bg-white p-8 rounded-3xl border-4 border-navy shadow-2xl relative overflow-hidden group">
+                <motion.div whileHover={{ y: -5 }} className="bg-white p-8 rounded-[3rem] border-4 border-navy shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
                         <Clock size={120} />
                     </div>
@@ -837,17 +945,17 @@ const LandingPage: React.FC<{
                         <div className="bg-navy/5 w-fit p-4 rounded-2xl">
                             <Play size={32} className="text-navy" />
                         </div>
-                        <h2 className="text-4xl font-black italic tracking-tighter text-navy uppercase">TIMEPASS LOG</h2>
-                        <ul className="space-y-3 text-gray-400 text-xs font-bold uppercase tracking-widest">
-                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-navy rounded-full"></div> LOCAL DEVICE STORAGE</li>
-                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-navy rounded-full"></div> NO ACCOUNT REQUIRED</li>
-                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-navy rounded-full"></div> TEMP ANALYTICS</li>
+                        <h2 className="text-4xl font-black italic tracking-tighter text-navy uppercase">LOCAL QUICKIE</h2>
+                        <ul className="space-y-3 text-gray-400 text-[10px] font-black uppercase tracking-widest">
+                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-navy rounded-full"></div> INSTANT LOCAL STORAGE</li>
+                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-navy rounded-full"></div> NO SESSION LIMITS</li>
+                            <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-navy rounded-full"></div> OFFLINE COMPATIBLE</li>
                         </ul>
                         <button 
                             onClick={() => onSelectMode('timepass')}
-                            className="w-full bg-navy text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-colors shadow-xl"
+                            className="w-full bg-navy text-white py-5 rounded-[2rem] font-black uppercase tracking-widest hover:bg-black transition-colors shadow-xl"
                         >
-                            START QUICK LEAGUE
+                            START LOCAL LEAGUE
                         </button>
                     </div>
                 </motion.div>
