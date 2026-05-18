@@ -5,6 +5,7 @@ export interface PlayerPerformance {
     playerName: string;
     runs: number;
     wickets: number;
+    balls?: number; // Added balls faced
 }
 
 export interface Match {
@@ -33,6 +34,22 @@ export interface Player {
     runs: number;
     wickets: number;
     matches: number;
+    balls?: number;
+    orangeCaps?: number;
+    purpleCaps?: number;
+}
+
+export interface RosterPlayer {
+    id: string;
+    name: string;
+    creatorId: string;
+    createdAt: number;
+    careerRuns?: number;
+    careerWickets?: number;
+    careerMatches?: number;
+    careerBalls?: number;
+    orangeCaps?: number;
+    purpleCaps?: number;
 }
 
 export interface Team {
@@ -64,6 +81,9 @@ export interface TournamentState {
     creatorEmail?: string;
     createdAt?: number;
     isPublic?: boolean;
+    status?: 'live' | 'completed';
+    orangeCap?: string;
+    purpleCap?: string;
 }
 
 export type AppMode = 'timepass' | 'cloud';

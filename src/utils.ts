@@ -13,7 +13,8 @@ export const calculatePlayerStats = (teams: Team[], matches: Match[]): Player[] 
                     team: team.name,
                     runs: 0,
                     wickets: 0,
-                    matches: 0
+                    matches: 0,
+                    balls: 0
                 };
             });
         }
@@ -25,10 +26,11 @@ export const calculatePlayerStats = (teams: Team[], matches: Match[]): Player[] 
             const processPerf = (p: PlayerPerformance, teamName: string) => {
                 const key = `${p.playerName.toLowerCase().trim()}-${teamName.toLowerCase().trim()}`;
                 if (!playerMap[key]) {
-                    playerMap[key] = { name: p.playerName, team: teamName, runs: 0, wickets: 0, matches: 0 };
+                    playerMap[key] = { name: p.playerName, team: teamName, runs: 0, wickets: 0, matches: 0, balls: 0 };
                 }
                 playerMap[key].runs += (Number(p.runs) || 0);
                 playerMap[key].wickets += (Number(p.wickets) || 0);
+                playerMap[key].balls += (Number(p.balls) || 0);
                 playerMap[key].matches += 1;
             };
 
@@ -38,7 +40,7 @@ export const calculatePlayerStats = (teams: Team[], matches: Match[]): Player[] 
     });
 
     return Object.values(playerMap)
-        .filter(p => p.runs > 0 || p.wickets > 0)
+        .filter(p => p.matches > 0)
         .sort((a, b) => b.runs - a.runs || b.wickets - a.wickets);
 };
 
@@ -56,11 +58,15 @@ export const calculateCareerStats = (tournaments: TournamentState[]): Player[] =
                             team: "VARIOUS",
                             runs: 0,
                             wickets: 0,
-                            matches: 0
+                            matches: 0,
+                            balls: 0,
+                            orangeCaps: 0,
+                            purpleCaps: 0
                         };
                     }
                     careerMap[nameKey].runs += (Number(p.runs) || 0);
                     careerMap[nameKey].wickets += (Number(p.wickets) || 0);
+                    careerMap[nameKey].balls += (Number(p.balls) || 0);
                     careerMap[nameKey].matches += 1;
                 };
 
@@ -68,6 +74,16 @@ export const calculateCareerStats = (tournaments: TournamentState[]): Player[] =
                 m.playerPerformances.team2Players.forEach(p => processPerf(p));
             }
         });
+
+        // Add caps if defined
+        if (t.orangeCap) {
+            const key = t.orangeCap.trim().toLowerCase();
+            if (careerMap[key]) careerMap[key].orangeCaps = (careerMap[key].orangeCaps || 0) + 1;
+        }
+        if (t.purpleCap) {
+            const key = t.purpleCap.trim().toLowerCase();
+            if (careerMap[key]) careerMap[key].purpleCaps = (careerMap[key].purpleCaps || 0) + 1;
+        }
     });
 
     return Object.values(careerMap)

@@ -50,6 +50,17 @@
         "playerPerformances": { "type": "object" }
       },
       "required": ["team1", "team2", "status", "type"]
+    },
+    "player": {
+      "title": "Player",
+      "description": "A player in the user's permanent roster",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "creatorId"]
     }
   },
   "firestore": {
@@ -64,6 +75,10 @@
     "/tournaments/{tournamentId}/matches/{matchId}": {
       "schema": "match",
       "description": "Matches within the tournament"
+    },
+    "/players/{playerId}": {
+      "schema": "player",
+      "description": "Global roster of players"
     }
   }
 }

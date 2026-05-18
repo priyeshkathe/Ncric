@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Trophy, Calendar, Search, Users, Award, Play, CheckCircle, Crown, Trash2, X, LogIn, LogOut, Globe, Clock, Plus, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { Match, Team, TournamentState, MatchType, AppMode } from './types';
+import { Match, Team, TournamentState, MatchType, AppMode, RosterPlayer } from './types';
 import { calculatePointsTable, generateLeagueMatches, calculatePlayerStats, calculateCareerStats } from './utils';
 import { auth, db, signIn, logOut } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -18,7 +18,8 @@ import {
     getDocs,
     deleteDoc,
     serverTimestamp,
-    getDoc
+    getDoc,
+    increment
 } from 'firebase/firestore';
 
 const STORAGE_KEY = "cricket_tourney_data_react";
@@ -43,7 +44,7 @@ interface FirestoreErrorInfo {
   }
 }
 
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -53,14 +54,17 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     },
     operationType,
     path
-  }
+  };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+  // Not throwing to prevent app crash, instead we could use a toast or alert
+  alert(`PERMISSION ERROR: ${errInfo.error}\nPath: ${path}\nAction: ${operationType}`);
+};
 
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [appMode, setAppMode] = useState<AppMode | null>(null);
+    const [showPlayerManager, setShowPlayerManager] = useState(false);
+    const [userPlayers, setUserPlayers] = useState<RosterPlayer[]>([]);
     const [cloudTournaments, setCloudTournaments] = useState<TournamentState[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -88,7 +92,7 @@ const App: React.FC = () => {
 
     // Cloud Tournaments Observer
     useEffect(() => {
-        const q = query(collection(db, "tournaments"), where("isPublic", "==", true), orderBy("createdAt", "desc"));
+        const q = query(collection(db, "tournaments"), where("isPublic", "==", true));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TournamentState));
             setCloudTournaments(docs);
@@ -99,6 +103,19 @@ const App: React.FC = () => {
     }, []);
 
     // Sync state with cloud if in cloud mode
+    useEffect(() => {
+        if (user) {
+            const q = query(collection(db, "players"), where("creatorId", "==", user.uid));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const players = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as RosterPlayer));
+                setUserPlayers(players);
+            });
+            return () => unsubscribe();
+        } else {
+            setUserPlayers([]);
+        }
+    }, [user]);
+
     useEffect(() => {
         if (appMode === 'cloud' && state.id) {
             const unsubscribe = onSnapshot(doc(db, "tournaments", state.id), (d) => {
@@ -161,38 +178,63 @@ const App: React.FC = () => {
     const isLeagueComplete = leagueMatches.length > 0 && completedLeagueCount === leagueMatches.length;
 
     // Handlers
+    const [isLaunching, setIsLaunching] = useState(false);
     const handleLaunch = async (name: string, teamData: { name: string; players: string[] }[]) => {
-        const newTeams: Team[] = teamData.map(t => ({
-            name: t.name, 
-            played: 0, won: 0, lost: 0, tied: 0, pts: 0,
-            runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0, nrr: 0,
-            players: t.players.filter(p => p.trim() !== "")
-        }));
-        const teamNames = teamData.map(t => t.name);
-        const newMatches = generateLeagueMatches(teamNames);
+        if (!name.trim()) return alert("Give your tournament a legendary name!");
+        if (teamData.some(t => !t.name.trim())) return alert("All teams must have names!");
         
-        const newState: TournamentState = {
-            active: true,
-            name,
-            teamCount: teamNames.length,
-            teams: newTeams,
-            matches: newMatches,
-            playoffs: { champion: null },
-            createdAt: Date.now(),
-            isPublic: true
-        };
-
-        if (appMode === 'cloud' && user) {
-            newState.creatorId = user.uid;
-            newState.creatorEmail = user.email || "";
-            try {
-                const docRef = await addDoc(collection(db, "tournaments"), newState);
-                setState({ ...newState, id: docRef.id });
-            } catch (error) {
-                handleFirestoreError(error, OperationType.WRITE, "tournaments");
+        setIsLaunching(true);
+        console.log("handleLaunch initiated with mode:", appMode);
+        
+        try {
+            if (appMode === 'cloud' && !user) {
+                setIsLaunching(false);
+                return alert("AUTHENTICATION REQUIRED: Please sign in to launch a Cloud Tournament.");
             }
-        } else {
-            setState(newState);
+            const teamNames = teamData.map(t => t.name.trim());
+            const newTeams: Team[] = teamData.map(t => ({
+                name: t.name.trim(), 
+                played: 0, won: 0, lost: 0, tied: 0, pts: 0,
+                runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0, nrr: 0,
+                players: t.players.map(p => p.trim()).filter(p => p !== "")
+            }));
+            
+            const newMatches = generateLeagueMatches(teamNames);
+            
+            const newState: TournamentState = {
+                active: true,
+                name: name.trim(),
+                teamCount: teamNames.length,
+                teams: newTeams,
+                matches: newMatches,
+                playoffs: { champion: null },
+                createdAt: Date.now(),
+                isPublic: true,
+                status: 'live'
+            };
+
+            if (appMode === 'cloud' && user) {
+                const cloudState = {
+                    ...newState,
+                    creatorId: user.uid,
+                    creatorEmail: user.email || "Unknown",
+                    isPublic: true,
+                    status: 'live' 
+                };
+                console.log("DEBUG: Attempting cloud launch for project:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
+                const docRef = await addDoc(collection(db, "tournaments"), cloudState);
+                console.log("Cloud tournament launched successfully. Doc ID:", docRef.id);
+                setState({ ...cloudState, id: docRef.id });
+            } else {
+                console.log("Launching local tournament...");
+                setState(newState);
+            }
+        } catch (error) {
+            console.error("Critical Launch Error:", error);
+            handleFirestoreError(error, OperationType.WRITE, "tournaments");
+            alert("Launch Failed! Check console for details.");
+        } finally {
+            setIsLaunching(false);
         }
     };
 
@@ -279,12 +321,67 @@ const App: React.FC = () => {
 
         const finalChampion = championName || state.playoffs.champion;
 
+        // Career Sync and Tournament Completion logic
         if (appMode === 'cloud' && state.id) {
             try {
-                await updateDoc(doc(db, "tournaments", state.id), {
+                const tournamentRef = doc(db, "tournaments", state.id);
+                const updatePayload: any = {
                     matches: finalMatches,
                     playoffs: { champion: finalChampion }
-                });
+                };
+
+                // If tournament just finished (champion crowned), calculate Caps
+                if (championName) {
+                    const allStats = calculatePlayerStats(state.teams, finalMatches);
+                    const topScorer = allStats[0]?.name;
+                    const topWicketer = [...allStats].sort((a,b) => b.wickets - a.wickets)[0]?.name;
+                    
+                    if (topScorer) updatePayload.orangeCap = topScorer;
+                    if (topWicketer) updatePayload.purpleCap = topWicketer;
+                    updatePayload.status = 'completed';
+
+                    // Update Caps in Player Roster
+                    const syncCaps = async (name: string, type: 'orange' | 'purple') => {
+                        const playerDocId = userPlayers.find(p => p.name.toLowerCase() === name.toLowerCase())?.id;
+                        if (playerDocId) {
+                            await updateDoc(doc(db, "players", playerDocId), {
+                                [type === 'orange' ? 'orangeCaps' : 'purpleCaps']: increment(1)
+                            });
+                        }
+                    };
+                    if (topScorer) await syncCaps(topScorer, 'orange');
+                    if (topWicketer) await syncCaps(topWicketer, 'purple');
+                }
+
+                await updateDoc(tournamentRef, updatePayload);
+
+                // SYNC MATCH STATS TO PLAYER ROSTER - ONLY IF NOT ALREADY COMPLETED
+                const originalMatch = state.matches.find(m => m.id === matchId);
+                const matchResults = finalMatches.find(m => m.id === matchId);
+                
+                if (originalMatch?.status !== 'completed' && matchResults?.status === 'completed' && matchResults.playerPerformances) {
+                    const allMatchPerfs = [
+                        ...matchResults.playerPerformances.team1Players,
+                        ...matchResults.playerPerformances.team2Players
+                    ];
+
+                    for (const perf of allMatchPerfs) {
+                        const playerDoc = userPlayers.find(p => p.name.toLowerCase() === perf.playerName.toLowerCase());
+                        if (playerDoc) {
+                            try {
+                                await updateDoc(doc(db, "players", playerDoc.id), {
+                                    careerRuns: increment(perf.runs || 0),
+                                    careerWickets: increment(perf.wickets || 0),
+                                    careerMatches: increment(1),
+                                    careerBalls: increment(perf.balls || 0)
+                                });
+                            } catch (e) {
+                                console.error("Error syncing player career stats:", e);
+                            }
+                        }
+                    }
+                }
+
             } catch (error) {
                 handleFirestoreError(error, OperationType.WRITE, `tournaments/${state.id}`);
             }
@@ -391,13 +488,19 @@ const App: React.FC = () => {
                         }}
                         onViewTournament={handleViewTournament}
                         user={user}
+                        onManagePlayers={() => setShowPlayerManager(true)}
                     />
                 ) : !state.active ? (
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
                         <button onClick={() => setAppMode(null)} className="mb-8 flex items-center gap-2 text-navy font-black text-[10px] uppercase hover:gap-3 transition-all bg-white px-4 py-2 rounded-full border shadow-sm w-fit">
                             <ArrowLeft size={14} /> Back to Dashboard
                         </button>
-                        <SetupForm onLaunch={handleLaunch} />
+                        <SetupForm 
+                            onLaunch={handleLaunch} 
+                            isLaunching={isLaunching} 
+                            roster={userPlayers} 
+                            openRoster={() => setShowPlayerManager(true)}
+                        />
                     </motion.div>
                 ) : (
                     <div className="animate-up">
@@ -542,7 +645,15 @@ const App: React.FC = () => {
                                                             <span className="text-xl font-black text-gray-200 w-6">#{idx + 1}</span>
                                                             <div>
                                                                 <div className="font-bold text-navy">{player.name}</div>
-                                                                <div className="text-[10px] text-gray-500 uppercase">{player.team} {leaderMode === 'career' && `• ${player.matches} Matches`}</div>
+                                                                <div className="text-[10px] text-gray-500 uppercase">
+                                                                    {player.team} {leaderMode === 'career' && `• ${player.matches} Mtch`}
+                                                                    {leaderMode === 'career' && player.balls && ` • ${player.balls} Balls`}
+                                                                </div>
+                                                                {leaderMode === 'career' && player.orangeCaps && (
+                                                                    <div className="flex items-center gap-1 text-[8px] font-black text-amber-600 uppercase">
+                                                                        <Award size={10} /> {player.orangeCaps} Orange Caps
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
@@ -568,7 +679,14 @@ const App: React.FC = () => {
                                                             <span className="text-xl font-black text-gray-200 w-6">#{idx + 1}</span>
                                                             <div>
                                                                 <div className="font-bold text-navy">{player.name}</div>
-                                                                <div className="text-[10px] text-gray-500 uppercase">{player.team} {leaderMode === 'career' && `• ${player.matches} Matches`}</div>
+                                                                <div className="text-[10px] text-gray-500 uppercase">
+                                                                    {player.team} {leaderMode === 'career' && `• ${player.matches} Mtch`}
+                                                                </div>
+                                                                {leaderMode === 'career' && player.purpleCaps && (
+                                                                    <div className="flex items-center gap-1 text-[8px] font-black text-purple-600 uppercase">
+                                                                        <Award size={10} /> {player.purpleCaps} Purple Caps
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
@@ -634,6 +752,12 @@ const App: React.FC = () => {
 
             {/* Modals */}
             <AnimatePresence>
+                {showPlayerManager && (
+                    <PlayerManager 
+                        players={userPlayers} 
+                        onClose={() => setShowPlayerManager(false)}
+                    />
+                )}
                 {editingMatch && (
                     <MatchResultModal 
                         match={editingMatch} 
@@ -658,13 +782,25 @@ const LandingPage: React.FC<{
     onSelectMode: (mode: AppMode) => void;
     onViewTournament: (t: TournamentState) => void;
     user: User | null;
-}> = ({ cloudTournaments, onSelectMode, onViewTournament, user }) => {
+    onManagePlayers: () => void;
+}> = ({ cloudTournaments, onSelectMode, onViewTournament, user, onManagePlayers }) => {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl mx-auto space-y-12">
             <div className="text-center py-12">
                 <h1 className="text-navy text-6xl md:text-8xl font-black italic tracking-tighter leading-tight mb-4">CRICKET HUB</h1>
                 <div className="h-2 w-48 bg-amber-400 mx-auto mb-6 rounded-full"></div>
                 <p className="text-gray-500 font-bold uppercase tracking-widest">Global Tournament Management Protocol</p>
+                
+                {user && (
+                    <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={onManagePlayers}
+                        className="mt-8 mx-auto flex items-center gap-2 bg-white text-navy border-2 border-navy px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-navy hover:text-white transition-all"
+                    >
+                        <Users size={14} /> Manage My Roster
+                    </motion.button>
+                )}
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
@@ -759,79 +895,228 @@ const LandingPage: React.FC<{
         </motion.div>
     );
 };
-const SetupForm: React.FC<{ onLaunch: (name: string, teams: { name: string; players: string[] }[]) => void }> = ({ onLaunch }) => {
+const TeamInput: React.FC<{ 
+    index: number; 
+    data: { name: string; players: string[] }; 
+    roster: RosterPlayer[]; 
+    onChange: (val: { name: string; players: string[] }) => void;
+    openRoster: () => void;
+}> = ({ index, data, roster, onChange, openRoster }) => {
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: index * 0.05 }}
+            className="p-6 bg-white rounded-3xl border shadow-sm hover:shadow-md transition-shadow relative"
+        >
+            <div className="absolute -top-3 -left-3 w-8 h-8 bg-navy text-white rounded-full flex items-center justify-center font-black text-xs italic shadow-lg">
+                {index + 1}
+            </div>
+            
+            <div className="space-y-4">
+                <div>
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 mb-1.5 block">TEAM FRANCHISE NAME</label>
+                    <input 
+                        value={data.name} 
+                        onChange={(e) => onChange({ ...data, name: e.target.value })}
+                        placeholder="e.g. Mumbai Strikers"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 rounded-xl focus:border-navy outline-none font-bold text-navy"
+                    />
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">SQUAD SELECTION</label>
+                        <button 
+                            type="button" 
+                            onClick={openRoster}
+                            className="text-[9px] text-blue-600 font-black uppercase hover:underline flex items-center gap-1"
+                        >
+                            <Plus size={10} /> ADD PLAYERS TO MY ROSTER
+                        </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 p-3 bg-gray-50/50 border border-dashed rounded-2xl max-h-40 overflow-y-auto custom-scrollbar">
+                        {roster.length === 0 ? (
+                            <div className="w-full text-center py-4 bg-white/50 rounded-xl">
+                                <p className="text-[8px] text-gray-400 font-bold uppercase">No players in your professional roster</p>
+                            </div>
+                        ) : (
+                            roster.map(player => {
+                                const isSelected = data.players.includes(player.name);
+                                return (
+                                    <button
+                                        key={player.id}
+                                        type="button"
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                onChange({ ...data, players: data.players.filter(p => p !== player.name) });
+                                            } else {
+                                                onChange({ ...data, players: [...data.players, player.name] });
+                                            }
+                                        }}
+                                        className={`text-[9px] font-black px-3 py-2 rounded-lg transition-all border ${isSelected ? 'bg-amber-400 text-navy border-amber-400 shadow-sm' : 'bg-white text-gray-400 border-gray-100 hover:border-navy'}`}
+                                    >
+                                        {player.name}
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    <div className="relative">
+                        <textarea 
+                            className="w-full p-4 bg-white border-2 rounded-2xl text-xs outline-none focus:border-navy font-medium italic text-gray-500"
+                            placeholder="Add occasional players (comma separated)..."
+                            rows={2}
+                            value={data.players.join(", ")}
+                            onChange={(e) => {
+                                const names = e.target.value.split(",").map(p => p.trim()).filter(p => p !== "");
+                                onChange({ ...data, players: names });
+                            }}
+                        />
+                        <div className="absolute bottom-3 right-3 text-[8px] font-bold text-gray-300 uppercase">
+                            {data.players.length} PLAYERS
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+const SetupForm: React.FC<{ 
+    onLaunch: (name: string, teams: { name: string; players: string[] }[]) => void,
+    isLaunching: boolean,
+    roster: RosterPlayer[],
+    openRoster: () => void
+}> = ({ onLaunch, isLaunching, roster, openRoster }) => {
     const [name, setName] = useState("");
     const [count, setCount] = useState("");
     const [teamData, setTeamData] = useState<{ name: string; players: string[] }[]>([]);
 
     useEffect(() => {
         const n = parseInt(count);
-        if (!isNaN(n)) setTeamData(Array(n).fill(null).map(() => ({ name: "", players: [] })));
-        else setTeamData([]);
+        if (!isNaN(n)) {
+            setTeamData(prev => {
+                return Array(n).fill(null).map((_, i) => ({
+                    name: prev[i]?.name || "",
+                    players: prev[i]?.players || []
+                }));
+            });
+        } else {
+            setTeamData([]);
+        }
     }, [count]);
 
     return (
-        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg p-8 shadow-2xl border border-gray-100">
-                <div className="text-center mb-8">
-                    <h1 className="text-navy text-4xl font-extrabold mb-2">Create Tournament</h1>
-                    <p className="text-gray-500">Experience the game, manage the glory.</p>
-                </div>
-                <form onSubmit={(e) => { e.preventDefault(); onLaunch(name, teamData); }} className="space-y-6">
-                    <div>
-                        <label className="text-navy block text-xs font-bold uppercase tracking-widest mb-2">Tournament Title</label>
-                        <input value={name} onChange={(e) => setName(e.target.value)} required type="text" className="w-full px-4 py-3 border-2 rounded focus:border-blue-700 outline-none" placeholder="e.g. IPL 2026" />
-                    </div>
-                    <div>
-                        <label className="text-navy block text-xs font-bold uppercase tracking-widest mb-2">Competitor Slots</label>
-                        <select value={count} onChange={(e) => setCount(e.target.value)} required className="w-full px-4 py-3 border-2 rounded focus:border-blue-700 outline-none">
-                            <option value="">Select pool size...</option>
-                            {[2, 3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} Teams</option>)}
-                        </select>
-                    </div>
-                    
-                    <div className="space-y-8">
-                        {teamData.map((team, i) => (
-                            <div key={i} className="p-4 bg-gray-50 rounded-lg border">
-                                <div className="flex gap-2 mb-3">
-                                    <span className="bg-navy text-white px-3 py-2 rounded font-bold">{i + 1}</span>
-                                    <input 
-                                        value={team.name} 
-                                        onChange={(e) => {
-                                            const next = [...teamData];
-                                            next[i].name = e.target.value;
-                                            setTeamData(next);
-                                        }} 
-                                        required 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border-2 rounded font-bold focus:border-blue-700 outline-none" 
-                                        placeholder="Team Name (Required)" 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Add Players (Optional - comma separated)</label>
-                                    <textarea 
-                                        className="w-full p-2 border-2 rounded text-sm outline-none focus:border-blue-700"
-                                        placeholder="Player 1, Player 2, Player 3..."
-                                        rows={2}
-                                        value={team.players.join(", ")}
-                                        onChange={(e) => {
-                                            const next = [...teamData];
-                                            next[i].players = e.target.value.split(",").map(p => p.trim()).filter(p => p !== "");
-                                            setTeamData(next);
-                                        }}
-                                    />
-                                </div>
+        <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+                <h1 className="text-navy text-4xl md:text-5xl font-black italic tracking-tighter uppercase mb-2">Initialize Series</h1>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.3em]">Configure your custom tournament protocol</p>
+                <div className="h-1.5 w-24 bg-amber-400 mx-auto mt-4 rounded-full"></div>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); onLaunch(name, teamData); }} className="space-y-12">
+                <div className="grid md:grid-cols-2 gap-8">
+                    <div className="bg-white p-8 rounded-3xl border shadow-sm space-y-6">
+                        <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">TOURNAMENT TITLE</label>
+                            <input 
+                                value={name} 
+                                onChange={(e) => setName(e.target.value)} 
+                                required 
+                                type="text" 
+                                className="w-full px-5 py-4 border-2 rounded-2xl focus:border-navy outline-none font-black text-navy text-xl italic" 
+                                placeholder="THE CHAMPIONS TROPHY" 
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">NUM OF TEAMS</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[2, 3, 4, 5, 8, 10].map(n => (
+                                    <button
+                                        key={n}
+                                        type="button"
+                                        onClick={() => setCount(n.toString())}
+                                        className={`py-3 rounded-xl border-2 font-black text-xs transition-all ${count === n.toString() ? 'bg-navy text-white border-navy shadow-lg scale-105' : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-navy'}`}
+                                    >
+                                        {n}
+                                    </button>
+                                ))}
                             </div>
-                        ))}
+                        </div>
                     </div>
 
-                    <button type="submit" className="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02]">
-                        <Play size={20} /> LAUNCH TOURNAMENT
+                    <div className="bg-navy p-8 rounded-3xl text-white shadow-2xl flex flex-col justify-center">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="bg-white/10 p-4 rounded-2xl">
+                                <Trophy className="text-amber-400" size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black italic tracking-tight uppercase">PROTOCOL PREVIEW</h3>
+                                <p className="text-[10px] uppercase opacity-60 font-bold">Automatic fixture validation enabled</p>
+                            </div>
+                        </div>
+                        <p className="text-xs opacity-80 leading-relaxed font-bold uppercase tracking-widest mb-6">
+                            Once launched, the system will generate a full Round-Robin league stage followed by Qualifiers, Semi-Finals, and a Grand Final.
+                        </p>
+                        <ul className="grid grid-cols-2 gap-4">
+                            <li className="bg-white/5 p-3 rounded-xl border border-white/10 text-center">
+                                <div className="text-[8px] opacity-60 mb-1">TOTAL TEAMS</div>
+                                <div className="text-xl font-black italic">{count || "0"}</div>
+                            </li>
+                            <li className="bg-white/5 p-3 rounded-xl border border-white/10 text-center">
+                                <div className="text-[8px] opacity-60 mb-1">STAGES</div>
+                                <div className="text-xl font-black italic">LEAGUE + K.O</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                {teamData.length > 0 && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        className="grid md:grid-cols-2 gap-6"
+                    >
+                        {teamData.map((team, i) => (
+                            <TeamInput 
+                                key={i} 
+                                index={i} 
+                                data={team} 
+                                roster={roster} 
+                                openRoster={openRoster}
+                                onChange={(val) => {
+                                    const next = [...teamData];
+                                    next[i] = val;
+                                    setTeamData(next);
+                                }} 
+                            />
+                        ))}
+                    </motion.div>
+                )}
+
+                <div className="flex justify-center pt-8">
+                    <button 
+                        type="submit" 
+                        disabled={isLaunching || teamData.length === 0}
+                        className="w-full max-w-xl group bg-navy text-white py-6 rounded-[2.5rem] font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-black transition-all transform hover:scale-[1.02] disabled:bg-gray-400 disabled:scale-100 flex items-center justify-center gap-4 text-xl"
+                    >
+                        {isLaunching ? (
+                            <>
+                                <div className="w-6 h-6 border-4 border-white/20 border-t-amber-400 rounded-full animate-spin"></div>
+                                BOOTING...
+                            </>
+                        ) : (
+                            <>
+                                <Play size={24} className="group-hover:text-amber-400 transition-colors" /> LAUNCH SERIES
+                            </>
+                        )}
                     </button>
-                </form>
-            </div>
-        </motion.section>
+                </div>
+            </form>
+        </div>
     );
 };
 
@@ -892,12 +1177,40 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
     </button>
 );
 
+const ScoringButtons: React.FC<{ 
+    teamName: string, 
+    onAddRuns: (n: number) => void, 
+    onAddWicket: () => void,
+    onAddOvers: (n: number) => void
+}> = ({ teamName, onAddRuns, onAddWicket, onAddOvers }) => (
+    <div className="space-y-4">
+        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block text-left">QUICK SCOREPAD: {teamName}</label>
+        <div className="flex flex-wrap gap-2">
+            {[1, 4, 6].map(n => (
+                <button key={n} type="button" onClick={() => onAddRuns(n)} className="bg-gray-100 hover:bg-navy hover:text-white px-3 py-2 rounded-xl font-black transition-all flex items-center gap-1">
+                    <Plus size={12} /> {n}
+                </button>
+            ))}
+            <button type="button" onClick={onAddWicket} className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-3 py-2 rounded-xl font-black transition-all border border-red-100 flex items-center gap-1">
+                WKT
+            </button>
+            <button type="button" onClick={() => onAddOvers(0.1)} className="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-xl font-black transition-all border border-blue-100 flex items-center gap-1">
+                +0.1 OV
+            </button>
+            <button type="button" onClick={() => onAddOvers(1.0)} className="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-xl font-black transition-all border border-blue-100 flex items-center gap-1">
+                +1.0 OV
+            </button>
+        </div>
+    </div>
+);
+
 const MatchResultModal: React.FC<{ 
     match: Match; 
     onClose: () => void; 
     onSave: (id: number, results: Partial<Match>) => void;
     teams: Team[];
 }> = ({ match, onClose, onSave, teams }) => {
+    // TESTING EDIT
     const t1 = teams.find(t => t.name === match.team1);
     const t2 = teams.find(t => t.name === match.team2);
 
@@ -906,17 +1219,45 @@ const MatchResultModal: React.FC<{
         team1Wickets: match.team1Wickets || 0,
         team2Score: match.team2Score || 0,
         team2Wickets: match.team2Wickets || 0,
-        team1Overs: match.team1Overs || match.quota || 0,
-        team2Overs: match.team2Overs || match.quota || 0,
+        team1Overs: match.team1Overs || 0,
+        team2Overs: match.team2Overs || 0,
         quota: match.quota || 20,
         playerPerformances: match.playerPerformances || {
-            team1Players: (t1?.players || []).map(p => ({ playerName: p, runs: 0, wickets: 0 })),
-            team2Players: (t2?.players || []).map(p => ({ playerName: p, runs: 0, wickets: 0 }))
+            team1Players: (t1?.players || []).map(p => ({ playerName: p, runs: 0, wickets: 0, balls: 0 })),
+            team2Players: (t2?.players || []).map(p => ({ playerName: p, runs: 0, wickets: 0, balls: 0 }))
         }
     });
 
     const [newPlayer, setNewPlayer] = useState({ name: "", team: 1 });
     const [showPlayers, setShowPlayers] = useState(false);
+
+    const handleAddRuns = (team: 1 | 2, n: number) => {
+        if (team === 1) setData(d => ({ ...d, team1Score: d.team1Score + n }));
+        else setData(d => ({ ...d, team2Score: d.team2Score + n }));
+    };
+
+    const handleAddWicket = (team: 1 | 2) => {
+        if (team === 1 && data.team1Wickets < 10) setData(d => ({ ...d, team1Wickets: d.team1Wickets + 1 }));
+        if (team === 2 && data.team2Wickets < 10) setData(d => ({ ...d, team2Wickets: d.team2Wickets + 1 }));
+    };
+
+    const handleAddOvers = (team: 1 | 2, n: number) => {
+        setData(d => {
+            let current = team === 1 ? d.team1Overs : d.team2Overs;
+            let full = Math.floor(current);
+            let balls = Math.round((current - full) * 10);
+            
+            if (n === 0.1) {
+                balls += 1;
+                if (balls >= 6) { full += 1; balls = 0; }
+            } else {
+                full += n;
+            }
+            
+            const next = parseFloat((full + balls / 10).toFixed(1));
+            return team === 1 ? { ...d, team1Overs: next } : { ...d, team2Overs: next };
+        });
+    };
 
     // Auto-adjust overs if all-out
     useEffect(() => {
@@ -928,9 +1269,9 @@ const MatchResultModal: React.FC<{
         if (!newPlayer.name.trim()) return;
         const next = { ...data.playerPerformances };
         if (newPlayer.team === 1) {
-            next.team1Players.push({ playerName: newPlayer.name.trim(), runs: 0, wickets: 0 });
+            next.team1Players.push({ playerName: newPlayer.name.trim(), runs: 0, wickets: 0, balls: 0 });
         } else {
-            next.team2Players.push({ playerName: newPlayer.name.trim(), runs: 0, wickets: 0 });
+            next.team2Players.push({ playerName: newPlayer.name.trim(), runs: 0, wickets: 0, balls: 0 });
         }
         setData({ ...data, playerPerformances: next });
         setNewPlayer({ name: "", team: 1 });
@@ -1028,16 +1369,23 @@ const MatchResultModal: React.FC<{
                                         {data.playerPerformances.team1Players.map((p, idx) => (
                                             <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded">
                                                 <span className="text-[10px] font-bold flex-1 truncate">{p.playerName}</span>
-                                                <input type="number" placeholder="Runs" className="w-12 p-1 text-xs border rounded" value={p.runs} onChange={(e) => {
-                                                    const next = {...data.playerPerformances};
-                                                    next.team1Players[idx].runs = +e.target.value;
-                                                    setData({...data, playerPerformances: next});
-                                                }} />
-                                                <input type="number" placeholder="Wkts" className="w-12 p-1 text-xs border rounded" value={p.wickets} onChange={(e) => {
-                                                    const next = {...data.playerPerformances};
-                                                    next.team1Players[idx].wickets = +e.target.value;
-                                                    setData({...data, playerPerformances: next});
-                                                }} />
+                                                <div className="flex gap-1 shrink-0">
+                                                    <input type="number" placeholder="R" title="Runs" className="w-10 p-1 text-[10px] border rounded" value={p.runs} onChange={(e) => {
+                                                        const next = {...data.playerPerformances};
+                                                        next.team1Players[idx].runs = +e.target.value;
+                                                        setData({...data, playerPerformances: next});
+                                                    }} />
+                                                    <input type="number" placeholder="B" title="Balls" className="w-10 p-1 text-[10px] border rounded" value={p.balls || 0} onChange={(e) => {
+                                                        const next = {...data.playerPerformances};
+                                                        next.team1Players[idx].balls = +e.target.value;
+                                                        setData({...data, playerPerformances: next});
+                                                    }} />
+                                                    <input type="number" placeholder="W" title="Wickets" className="w-10 p-1 text-[10px] border rounded" value={p.wickets} onChange={(e) => {
+                                                        const next = {...data.playerPerformances};
+                                                        next.team1Players[idx].wickets = +e.target.value;
+                                                        setData({...data, playerPerformances: next});
+                                                    }} />
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -1050,16 +1398,23 @@ const MatchResultModal: React.FC<{
                                         {data.playerPerformances.team2Players.map((p, idx) => (
                                             <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded">
                                                 <span className="text-[10px] font-bold flex-1 truncate">{p.playerName}</span>
-                                                <input type="number" placeholder="Runs" className="w-12 p-1 text-xs border rounded" value={p.runs} onChange={(e) => {
-                                                    const next = {...data.playerPerformances};
-                                                    next.team2Players[idx].runs = +e.target.value;
-                                                    setData({...data, playerPerformances: next});
-                                                }} />
-                                                <input type="number" placeholder="Wkts" className="w-12 p-1 text-xs border rounded" value={p.wickets} onChange={(e) => {
-                                                    const next = {...data.playerPerformances};
-                                                    next.team2Players[idx].wickets = +e.target.value;
-                                                    setData({...data, playerPerformances: next});
-                                                }} />
+                                                <div className="flex gap-1 shrink-0">
+                                                    <input type="number" placeholder="R" title="Runs" className="w-10 p-1 text-[10px] border rounded" value={p.runs} onChange={(e) => {
+                                                        const next = {...data.playerPerformances};
+                                                        next.team2Players[idx].runs = +e.target.value;
+                                                        setData({...data, playerPerformances: next});
+                                                    }} />
+                                                    <input type="number" placeholder="B" title="Balls" className="w-10 p-1 text-[10px] border rounded" value={p.balls || 0} onChange={(e) => {
+                                                        const next = {...data.playerPerformances};
+                                                        next.team2Players[idx].balls = +e.target.value;
+                                                        setData({...data, playerPerformances: next});
+                                                    }} />
+                                                    <input type="number" placeholder="W" title="Wickets" className="w-10 p-1 text-[10px] border rounded" value={p.wickets} onChange={(e) => {
+                                                        const next = {...data.playerPerformances};
+                                                        next.team2Players[idx].wickets = +e.target.value;
+                                                        setData({...data, playerPerformances: next});
+                                                    }} />
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -1103,3 +1458,140 @@ const ChampionOverlay: React.FC<{ teamName: string; onClose: () => void }> = ({ 
 );
 
 export default App;
+
+const PlayerManager: React.FC<{ players: RosterPlayer[], onClose: () => void }> = ({ players, onClose }) => {
+    const [name, setName] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+
+    const addPlayer = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmedName = name.trim();
+        if (!trimmedName) return alert("Please enter a player name");
+        
+        setIsSaving(true);
+        console.log("Attempting to add player to roster:", trimmedName);
+        
+        try {
+            const playerPayload = {
+                name: trimmedName,
+                creatorId: auth.currentUser?.uid,
+                createdAt: Date.now()
+            };
+            console.log("DEBUG: Attempting to add player with payload:", JSON.stringify(playerPayload));
+            const docRef = await addDoc(collection(db, "players"), playerPayload);
+            console.log("Player added to roster successfully. ID:", docRef.id);
+            setName("");
+        } catch (error) {
+            console.error("Add player error:", error);
+            handleFirestoreError(error, OperationType.WRITE, "players");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const deletePlayer = async (id: string) => {
+        if (!confirm("Remove this player from roster?")) return;
+        try {
+            await deleteDoc(doc(db, "players", id));
+        } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, `players/${id}`);
+        }
+    };
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+                <div className="bg-navy p-8 text-white flex justify-between items-center">
+                    <div>
+                        <h3 className="text-2xl font-black italic tracking-tighter uppercase">My Professional Roster</h3>
+                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-[0.2em]">Manage your permanent player database</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X /></button>
+                </div>
+
+                <div className="p-8 flex flex-col gap-8 overflow-hidden">
+                    <form onSubmit={addPlayer} className="flex gap-2">
+                        <input 
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Full Player Name..."
+                            className="flex-1 px-4 py-3 border-2 rounded-xl focus:border-navy outline-none font-bold"
+                        />
+                        <button 
+                            type="submit"
+                            disabled={isSaving}
+                            className="bg-navy text-white px-6 rounded-xl font-black uppercase tracking-widest hover:bg-black transition-colors disabled:bg-gray-400"
+                        >
+                            {isSaving ? "ADDING..." : "ADD"}
+                        </button>
+                    </form>
+
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                        {players.length === 0 ? (
+                            <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed">
+                                <Users size={32} className="mx-auto text-gray-300 mb-2" />
+                                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Your roster is empty</p>
+                                <p className="text-gray-300 text-[8px] uppercase mt-2">Add players above to see them here</p>
+                            </div>
+                        ) : (
+                            players.sort((a,b) => b.createdAt - a.createdAt).map(player => (
+                                <div key={player.id} className="p-4 bg-gray-50 rounded-2xl border hover:border-navy transition-all group">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <div className="font-black text-navy uppercase tracking-tight text-lg">{player.name}</div>
+                                            <div className="text-[8px] text-gray-400 font-bold uppercase">Added {new Date(player.createdAt).toLocaleDateString()}</div>
+                                        </div>
+                                        <button 
+                                            onClick={() => deletePlayer(player.id)}
+                                            className="p-2 text-gray-200 hover:text-red-500 hover:bg-red-50 transition-all rounded-lg"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div className="bg-white p-2 rounded-xl border border-gray-100 text-center">
+                                            <div className="text-xs font-black text-navy">{player.careerRuns || 0}</div>
+                                            <div className="text-[7px] text-gray-400 uppercase font-black">Runs</div>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-xl border border-gray-100 text-center">
+                                            <div className="text-xs font-black text-navy">{player.careerWickets || 0}</div>
+                                            <div className="text-[7px] text-gray-400 uppercase font-black">Wkts</div>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-xl border border-gray-100 text-center">
+                                            <div className="text-xs font-black text-navy">{player.careerMatches || 0}</div>
+                                            <div className="text-[7px] text-gray-400 uppercase font-black">Mtch</div>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-xl border border-gray-100 text-center">
+                                            <div className="text-xs font-black text-navy">{player.careerBalls || 0}</div>
+                                            <div className="text-[7px] text-gray-400 uppercase font-black">Balls</div>
+                                        </div>
+                                    </div>
+
+                                    {(player.orangeCaps || player.purpleCaps) && (
+                                        <div className="flex gap-2 mt-2">
+                                            {player.orangeCaps && (
+                                                <div className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[7px] font-black uppercase">
+                                                    <Award size={8} /> Orange Cap x{player.orangeCaps}
+                                                </div>
+                                            )}
+                                            {player.purpleCaps && (
+                                                <div className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[7px] font-black uppercase">
+                                                    <Award size={8} /> Purple Cap x{player.purpleCaps}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 border-t text-center">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">These players will be available for quick selection in all future tournaments</p>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};

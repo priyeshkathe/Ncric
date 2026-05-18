@@ -11,6 +11,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// Check for missing keys (useful for debugging Netlify/Production issues)
+if (!firebaseConfig.apiKey) {
+  console.error("Firebase API Key is missing! Check your environment variables (VITE_FIREBASE_API_KEY).");
+}
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)');
 export const auth = getAuth(app);
@@ -30,9 +35,13 @@ export const signIn = async () => {
       return null;
     }
     if (error.code === 'auth/unauthorized-domain') {
+      const hostname = window.location.hostname;
       console.error('CRITICAL: This domain is not authorized in Firebase Console.');
-      console.error('Current Domain:', window.location.hostname);
-      console.error('Please add this domain to Authentication > Settings > Authorized domains in Firebase Console.');
+      console.error('Current Domain:', hostname);
+      console.error('ACTION REQUIRED: Go to https://console.firebase.google.com/ and find your project.');
+      console.error('1. Go to "Authentication" > "Settings" > "Authorized domains"');
+      console.error('2. Click "Add domain" and enter:', hostname);
+      alert(`SETUP REQUIRED: This website (${hostname}) is not allowed to sign in with your Firebase project yet.\n\nPlease add this domain to "Authorized domains" in your Firebase Consol settings.`);
     }
     console.error('Sign-in error:', error.code, error.message);
     throw error;
