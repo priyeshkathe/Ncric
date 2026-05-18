@@ -71,9 +71,11 @@ const App: React.FC = () => {
 
     const [state, setState] = useState<TournamentState>(() => {
         const saved = localStorage.getItem(STORAGE_KEY);
+        const savedMode = localStorage.getItem(STORAGE_KEY + "_mode") as AppMode;
+        
         if (saved) {
             const parsed = JSON.parse(saved);
-            // If we have saved state, ensure it stays active if it was
+            if (savedMode) setAppMode(savedMode);
             return parsed;
         }
         return {
@@ -85,36 +87,6 @@ const App: React.FC = () => {
             playoffs: { champion: null }
         };
     });
-
-    // Local Roster persistence for Timepass mode
-    useEffect(() => {
-        if (!user) {
-            const savedPlayers = localStorage.getItem(STORAGE_KEY + "_players");
-            if (savedPlayers) {
-                setUserPlayers(JSON.parse(savedPlayers));
-            }
-        }
-    }, [user]);
-
-    useEffect(() => {
-        if (!user && appMode === 'timepass') {
-            localStorage.setItem(STORAGE_KEY + "_players", JSON.stringify(userPlayers));
-        }
-    }, [userPlayers, appMode, user]);
-
-    // Connect Test
-    useEffect(() => {
-        const testConnection = async () => {
-          try {
-            await getDocFromServer(doc(db, 'test', 'connection'));
-          } catch (error: any) {
-            if(error?.message?.includes('offline')) {
-              console.error("Firebase appears to be offline. Check configuration.");
-            }
-          }
-        };
-        testConnection();
-    }, []);
 
     // Auth Observer
     useEffect(() => {
@@ -160,19 +132,40 @@ const App: React.FC = () => {
         };
     }, [user]);
 
-    // Sync state with cloud if in cloud mode
+    // Roster Sync: Cloud vs Local
     useEffect(() => {
         if (user) {
             const q = query(collection(db, "players"), where("creatorId", "==", user.uid));
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const players = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as RosterPlayer));
                 setUserPlayers(players);
+            }, (error) => {
+                handleFirestoreError(error, OperationType.LIST, "players");
             });
             return () => unsubscribe();
         } else {
-            setUserPlayers([]);
+            const savedPlayers = localStorage.getItem(STORAGE_KEY + "_players");
+            if (savedPlayers) {
+                setUserPlayers(JSON.parse(savedPlayers));
+            } else {
+                setUserPlayers([]);
+            }
         }
     }, [user]);
+
+    // Connect Test
+    useEffect(() => {
+        const testConnection = async () => {
+          try {
+            await getDocFromServer(doc(db, 'test', 'connection'));
+          } catch (error: any) {
+            if(error?.message?.includes('offline')) {
+              console.error("Firebase appears to be offline. Check configuration.");
+            }
+          }
+        };
+        testConnection();
+    }, []);
 
     useEffect(() => {
         if (appMode === 'cloud' && state.id) {
@@ -194,10 +187,18 @@ const App: React.FC = () => {
 
     // Persist State
     useEffect(() => {
-        if (state.active && (appMode === 'timepass' || appMode === null)) {
+        if (state.active) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            if (appMode) localStorage.setItem(STORAGE_KEY + "_mode", appMode);
         }
     }, [state, appMode]);
+
+    // Save Local Roster
+    useEffect(() => {
+        if (!user) {
+            localStorage.setItem(STORAGE_KEY + "_players", JSON.stringify(userPlayers));
+        }
+    }, [userPlayers, user]);
 
     // Handle Mode Switching logic
     const selectMode = (mode: AppMode) => {
@@ -277,12 +278,13 @@ const App: React.FC = () => {
                     creatorId: user.uid,
                     creatorEmail: user.email || "Unknown",
                     isPublic: true,
-                    status: 'live' 
+                    status: 'live',
+                    createdAt: serverTimestamp() // Use server timestamp for consistency
                 };
-                console.log("DEBUG: Attempting cloud launch for project:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
+                console.log("DEBUG: Attempting cloud launch...");
                 const docRef = await addDoc(collection(db, "tournaments"), cloudState);
                 console.log("Cloud tournament launched successfully. Doc ID:", docRef.id);
-                setState({ ...cloudState, id: docRef.id });
+                setState({ ...cloudState, id: docRef.id, createdAt: Date.now() } as TournamentState);
             } else {
                 console.log("Launching local tournament...");
                 setState(newState);
@@ -492,10 +494,12 @@ const App: React.FC = () => {
         e.stopPropagation();
         if (window.confirm("🗑️ Permanent Wipe: Delete your local tournament data?")) {
             localStorage.removeItem(STORAGE_KEY);
-            if (appMode === 'timepass') {
-                setState({ active: false, name: "", teamCount: 0, teams: [], matches: [], playoffs: { champion: null } });
-            }
-            window.location.reload(); // Hard refresh to clear all buffers
+            localStorage.removeItem(STORAGE_KEY + "_mode");
+            localStorage.removeItem(STORAGE_KEY + "_players");
+            setState({ active: false, name: "", teamCount: 0, teams: [], matches: [], playoffs: { champion: null } });
+            setAppMode(null);
+            setUserPlayers([]);
+            window.location.reload(); 
         }
     };
 
