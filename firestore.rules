@@ -28,7 +28,12 @@ service cloud.firestore {
     }
 
     match /tournaments/{tournamentId} {
-      allow read: if resource.data.isPublic == true || isOwner(resource);
+      // allow get: Single document fetch
+      allow get: if (resource.data.isPublic == true) || isOwner(resource);
+
+      // allow list: For queries (collection-wide)
+      // Note: resource.data refers to each document in the potential result set
+      allow list: if (resource.data.isPublic == true) || isOwner(resource);
       
       allow create: if isSignedIn() && 
                     isValidId(tournamentId) && 
@@ -36,7 +41,7 @@ service cloud.firestore {
       
       allow update: if isOwner(resource) && 
                     isValidTournament(request.resource.data) &&
-                    request.resource.data.creatorId == resource.data.creatorId; // Immutable creator
+                    request.resource.data.creatorId == resource.data.creatorId;
       
       allow delete: if isOwner(resource);
     }

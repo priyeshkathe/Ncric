@@ -92,6 +92,8 @@ const App: React.FC = () => {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TournamentState));
             setCloudTournaments(docs);
+        }, (error) => {
+            handleFirestoreError(error, OperationType.LIST, "tournaments");
         });
         return () => unsubscribe();
     }, []);
@@ -103,6 +105,8 @@ const App: React.FC = () => {
                 if (d.exists()) {
                     setState(prev => ({ ...prev, ...d.data() as TournamentState }));
                 }
+            }, (error) => {
+                handleFirestoreError(error, OperationType.GET, `tournaments/${state.id}`);
             });
             return () => unsubscribe();
         }

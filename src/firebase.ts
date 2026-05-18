@@ -12,9 +12,30 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID);
+export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)');
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export const signIn = () => signInWithPopup(auth, googleProvider);
+export const signIn = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result;
+  } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.warn('Login popup was closed by the user or blocked by the browser.');
+      return null;
+    }
+    if (error.code === 'auth/cancelled-popup-request') {
+      console.warn('Sign-in popup was cancelled because another one was opened.');
+      return null;
+    }
+    if (error.code === 'auth/unauthorized-domain') {
+      console.error('CRITICAL: This domain is not authorized in Firebase Console.');
+      console.error('Current Domain:', window.location.hostname);
+      console.error('Please add this domain to Authentication > Settings > Authorized domains in Firebase Console.');
+    }
+    console.error('Sign-in error:', error.code, error.message);
+    throw error;
+  }
+};
 export const logOut = () => signOut(auth);
